@@ -82,4 +82,4 @@ Environment variables needed (see `.env.example`): Supabase URL/key, GitHub App 
 
 ## License
 
-MIT
+This project is licensed under the [MIT License](LICENSE).
