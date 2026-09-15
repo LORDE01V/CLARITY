@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+  <!-- Clarity mark: three overlapping discs + center eye (no wordmark) -->
+  <circle cx="60" cy="42" r="34" fill="#0F6C73"/>
+  <circle cx="42" cy="72" r="34" fill="#9ED4D8"/>
+  <circle cx="78" cy="72" r="34" fill="#147D85"/>
+  <circle cx="60" cy="62" r="16" fill="#FFFFFF"/>
+  <circle cx="60" cy="62" r="7" fill="#0F6C73"/>
+</svg>

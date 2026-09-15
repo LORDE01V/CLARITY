@@ -1,0 +1,156 @@
+/**
+ * CLARITY design tokens
+ *
+ * :root holds raw values for plain CSS (.clarity-input, etc.)
+ * @theme maps them into Tailwind utilities — names must NOT self-reference.
+ */
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --background: #edf7f8;
+  --foreground: #17232b;
+  --card: #ffffff;
+  --card-foreground: #292724;
+  --popover: #fbfaf8;
+  --popover-foreground: #292724;
+
+  /* Brand */
+  --primary: #147d85;
+  --primary-foreground: #ffffff;
+  --primary-hover: #0f6c73;
+
+  /* Neutrals */
+  --secondary: #f0eeeb;
+  --secondary-foreground: #77716b;
+  --muted: #f0eeeb;
+  --muted-foreground: #8d8983;
+  --muted-light: #a7a29c;
+  --accent: #e7f5f5;
+  --accent-foreground: #147d85;
+  --destructive: #dc2626;
+
+  /* Text */
+  --text-body: #4f4a45;
+  --text-subtle: #5f5953;
+  --text-chat: #77716b;
+  --text-placeholder: #b0aaa3;
+  --text-icon-muted: #c2bdb7;
+
+  /* Borders */
+  --border: #e6e3df;
+  --border-subtle: #efedea;
+  --border-warm: #dedbd6;
+  --border-dashed: #bcb7b1;
+  --input: #e6e3df;
+  --ring: #147d85;
+
+  /* Sidebar */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #292724;
+  --sidebar-primary: #147d85;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e7f5f5;
+  --sidebar-accent-foreground: #147d85;
+  --sidebar-border: #dcebed;
+
+  /* UI states */
+  --row-hover: #fcfbfa;
+  --chat-bubble: #f4f2ef;
+  --badge-neutral: #f7f5f2;
+  --info-banner-bg: #e7f5f5;
+  --info-banner-border: #cfe9eb;
+  --overlay: rgb(41 39 36 / 0.35);
+
+  /* Decorative */
+  --glow-teal: rgb(223 242 243 / 0.75);
+  --ring-teal: rgb(214 238 240 / 0.7);
+  --dot-grid: rgb(20 125 133 / 0.14);
+  --contour: rgb(20 125 133 / 0.075);
+
+  /* Charts */
+  --chart-1: #147d85;
+  --chart-2: #7456a3;
+  --chart-3: #a66b31;
+  --chart-4: #716c67;
+  --chart-5: #77716b;
+
+  /* Typography */
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Radius */
+  --radius: 16px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+
+  /* Shadows — visible teal-tinted depth */
+  --shadow-panel: 0 10px 30px rgb(39 105 112 / 0.12);
+  --shadow-panel-hover: 0 16px 40px rgb(39 105 112 / 0.18);
+  --shadow-card: 0 2px 8px rgb(39 105 112 / 0.08), 0 1px 2px rgb(39 105 112 / 0.06);
+  --shadow-card-hover: 0 8px 24px rgb(39 105 112 / 0.14), 0 2px 6px rgb(39 105 112 / 0.08);
+  --shadow-button: 0 2px 6px rgb(20 125 133 / 0.25);
+  --shadow-button-hover: 0 6px 16px rgb(20 125 133 / 0.32);
+  --selection: #147d85;
+  --selection-foreground: #ffffff;
+}
+
+@theme inline {
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+
+  --color-background: #edf7f8;
+  --color-foreground: #17232b;
+  --color-card: #ffffff;
+  --color-card-foreground: #292724;
+  --color-popover: #fbfaf8;
+  --color-popover-foreground: #292724;
+  --color-primary: #147d85;
+  --color-primary-foreground: #ffffff;
+  --color-primary-hover: #0f6c73;
+  --color-secondary: #f0eeeb;
+  --color-secondary-foreground: #77716b;
+  --color-muted: #f0eeeb;
+  --color-muted-foreground: #8d8983;
+  --color-muted-light: #a7a29c;
+  --color-accent: #e7f5f5;
+  --color-accent-foreground: #147d85;
+  --color-destructive: #dc2626;
+  --color-border: #e6e3df;
+  --color-border-subtle: #efedea;
+  --color-input: #e6e3df;
+  --color-ring: #147d85;
+  --color-sidebar: #ffffff;
+  --color-sidebar-foreground: #292724;
+  --color-sidebar-primary: #147d85;
+  --color-sidebar-primary-foreground: #ffffff;
+  --color-sidebar-accent: #e7f5f5;
+  --color-sidebar-accent-foreground: #147d85;
+  --color-sidebar-border: #dcebed;
+  --color-text-body: #4f4a45;
+  --color-text-subtle: #5f5953;
+  --color-text-chat: #77716b;
+  --color-row-hover: #fcfbfa;
+  --color-chat-bubble: #f4f2ef;
+  --color-chart-1: #147d85;
+  --color-chart-2: #7456a3;
+  --color-chart-3: #a66b31;
+  --color-chart-4: #716c67;
+  --color-chart-5: #77716b;
+
+  --shadow-panel: 0 10px 30px rgb(39 105 112 / 0.12);
+  --shadow-panel-hover: 0 16px 40px rgb(39 105 112 / 0.18);
+  --shadow-card: 0 2px 8px rgb(39 105 112 / 0.08), 0 1px 2px rgb(39 105 112 / 0.06);
+  --shadow-card-hover: 0 8px 24px rgb(39 105 112 / 0.14), 0 2px 6px rgb(39 105 112 / 0.08);
+  --shadow-button: 0 2px 6px rgb(20 125 133 / 0.25);
+  --shadow-button-hover: 0 6px 16px rgb(20 125 133 / 0.32);
+  --shadow-sm: 0 1px 3px rgb(39 105 112 / 0.1), 0 1px 2px rgb(39 105 112 / 0.06);
+  --shadow-md: 0 4px 12px rgb(39 105 112 / 0.12), 0 2px 4px rgb(39 105 112 / 0.08);
+  --shadow-lg: 0 10px 24px rgb(39 105 112 / 0.14), 0 4px 8px rgb(39 105 112 / 0.08);
+}

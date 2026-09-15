@@ -1,0 +1,488 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    overflow-x: clip;
+  }
+
+  ::selection {
+    background-color: var(--selection);
+    color: var(--selection-foreground);
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+    margin: 0;
+    overflow-x: clip;
+    /* Single page scrollbar — document only */
+    overflow-y: auto;
+  }
+
+  button,
+  input,
+  textarea {
+    font-family: inherit;
+  }
+
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Panels — depth without constant lift noise */
+.clarity-panel {
+  border-radius: var(--radius-md);
+  border: 1px solid rgb(255 255 255 / 0.85);
+  background-color: rgb(255 255 255 / 0.92);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(8px);
+  transition: box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .clarity-panel:hover {
+    box-shadow: var(--shadow-panel-hover);
+  }
+}
+
+/* Decorative background */
+.clarity-dot-grid {
+  background-image: radial-gradient(circle, var(--dot-grid) 1px, transparent 1.5px);
+  background-size: 18px 18px;
+  mask-image: linear-gradient(to bottom, black, transparent 82%);
+}
+
+.clarity-contours {
+  background-image: repeating-radial-gradient(
+    ellipse at 70% 40%,
+    transparent 0 28px,
+    var(--contour) 29px 30px,
+    transparent 31px 54px
+  );
+  mask-image: linear-gradient(90deg, transparent, black 25%, black 78%, transparent);
+  opacity: 0.8;
+}
+
+.clarity-arc {
+  border: 1px solid rgb(20 125 133 / 0.08);
+  border-radius: 9999px;
+  box-shadow:
+    0 0 0 22px rgb(20 125 133 / 0.035),
+    0 0 0 44px rgb(20 125 133 / 0.025);
+}
+
+/* Three overlapping rings — echoes the Clarity mark */
+.clarity-logo-rings {
+  background:
+    radial-gradient(circle at 50% 28%, rgb(20 125 133 / 0.16) 0 18%, transparent 19%),
+    radial-gradient(circle at 32% 68%, rgb(20 125 133 / 0.1) 0 18%, transparent 19%),
+    radial-gradient(circle at 68% 68%, rgb(20 125 133 / 0.12) 0 18%, transparent 19%);
+  mask-image: radial-gradient(circle, black 35%, transparent 78%);
+}
+
+.clarity-brand-mark {
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: saturate(1.05);
+}
+
+/* Form controls */
+.clarity-input {
+  width: 100%;
+  min-height: 2.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--input);
+  background-color: var(--card);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  color: var(--text-body);
+  outline: none;
+  box-shadow: var(--shadow-card);
+  transition:
+    border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.clarity-input:hover {
+  border-color: var(--border-warm);
+}
+
+.clarity-input:focus {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px rgb(20 125 133 / 0.2), var(--shadow-card);
+}
+
+.clarity-input::placeholder {
+  color: var(--text-placeholder);
+}
+
+.clarity-error {
+  font-size: 0.8125rem;
+  color: var(--destructive);
+}
+
+.clarity-info-banner {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--info-banner-border);
+  background-color: var(--info-banner-bg);
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--primary);
+  box-shadow: var(--shadow-card);
+}
+
+/* Stat cards */
+.clarity-stat-card {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background-color: var(--card);
+  padding: 1rem;
+  box-shadow: var(--shadow-card);
+  transition:
+    box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .clarity-stat-card:hover {
+    border-color: var(--border-warm);
+    box-shadow: var(--shadow-card-hover);
+  }
+}
+
+/* Icon buttons — 44px touch target */
+.clarity-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background-color: var(--card);
+  color: var(--muted-foreground);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition:
+    color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.clarity-icon-btn:hover {
+  color: var(--card-foreground);
+  border-color: var(--border-warm);
+  background-color: var(--row-hover);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.clarity-icon-btn:active {
+  box-shadow: var(--shadow-card);
+}
+
+/* Sidebar nav item */
+.clarity-nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: var(--radius-sm);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition:
+    background-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.clarity-nav-item--active {
+  background-color: var(--accent);
+  color: var(--primary);
+  box-shadow: var(--shadow-card);
+}
+
+.clarity-nav-item--inactive {
+  color: var(--secondary-foreground);
+}
+
+.clarity-nav-item--inactive:hover {
+  background-color: var(--secondary);
+  color: var(--card-foreground);
+}
+
+/* List row hover */
+.clarity-row {
+  transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.clarity-row:hover {
+  background-color: var(--row-hover);
+}
+
+/* Focus ring */
+.clarity-focus:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Modal shell */
+.clarity-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background-color: var(--overlay);
+}
+
+.clarity-modal-overlay[data-open="true"] {
+  animation: clarity-fade-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes clarity-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+body.clarity-modal-open {
+  overflow: hidden;
+}
+
+/* Linear expand navigation — same liquid spring motion, stacked downward */
+.clarity-linear-toggle {
+  transition:
+    transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.clarity-linear-toggle:hover {
+  transform: scale(1.06);
+  box-shadow: var(--shadow-button-hover);
+}
+
+.clarity-linear-toggle--open {
+  transform: scale(1.08) rotate(90deg);
+  box-shadow: var(--shadow-button-hover);
+}
+
+.clarity-linear-bloom {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 9999px;
+  background: linear-gradient(
+    180deg,
+    rgb(20 125 133 / 0.32) 0%,
+    rgb(20 125 133 / 0.14) 45%,
+    transparent 100%
+  );
+  filter: blur(10px);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.4);
+  transform-origin: top center;
+  transition:
+    opacity 380ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 520ms cubic-bezier(0.34, 1.4, 0.64, 1),
+    height 520ms cubic-bezier(0.34, 1.4, 0.64, 1);
+  pointer-events: none;
+}
+
+.clarity-linear-bloom--open {
+  opacity: 1;
+  height: var(--bloom-length, 280px);
+  transform: translate(-50%, 0) scale(1.15, 1);
+}
+
+.clarity-linear-item {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(0) scale(0.35);
+  transition:
+    opacity 280ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 480ms cubic-bezier(0.34, 1.45, 0.64, 1),
+    background-color 200ms ease,
+    color 200ms ease,
+    box-shadow 200ms ease;
+  transition-delay: 0ms;
+  white-space: nowrap;
+}
+
+.clarity-linear-item--open {
+  opacity: 1;
+  pointer-events: auto;
+  transition-delay: var(--linear-delay, 0ms);
+  transform: translateY(var(--linear-y, 56px)) scale(1);
+}
+
+.clarity-linear-item--open:hover {
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(var(--linear-y, 56px)) scale(1.05);
+}
+
+.clarity-linear-item--open:active {
+  transform: translateY(var(--linear-y, 56px)) scale(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clarity-linear-toggle,
+  .clarity-linear-bloom,
+  .clarity-linear-item {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Tasks board — accountability surface */
+.clarity-task-column {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background:
+    linear-gradient(180deg, rgb(231 245 245 / 0.55) 0%, transparent 120px),
+    rgb(252 251 250 / 0.9);
+  padding: 0.875rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.clarity-task-card {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background-color: var(--card);
+  padding: 0.875rem;
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition:
+    border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .clarity-task-card:hover {
+    border-color: var(--border-warm);
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-1px);
+  }
+}
+
+.clarity-task-card:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.clarity-task-card--selected {
+  border-color: rgb(20 125 133 / 0.45);
+  box-shadow:
+    0 0 0 3px rgb(20 125 133 / 0.14),
+    var(--shadow-card-hover);
+}
+
+.clarity-task-empty {
+  border: 1px dashed var(--border-dashed);
+  background-color: rgb(255 255 255 / 0.45);
+}
+
+.clarity-task-skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--secondary) 0%,
+    rgb(231 245 245 / 0.9) 50%,
+    var(--secondary) 100%
+  );
+  background-size: 200% 100%;
+  animation: clarity-skeleton 1.2s ease-in-out infinite;
+}
+
+@keyframes clarity-skeleton {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.clarity-task-drawer-root {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.clarity-task-drawer-scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background-color: var(--overlay);
+  cursor: pointer;
+  animation: clarity-fade-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.clarity-task-drawer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  height: 100%;
+  width: min(26rem, 100%);
+  flex-direction: column;
+  background-color: var(--card);
+  box-shadow: var(--shadow-lg);
+  outline: none;
+  animation: clarity-drawer-in 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes clarity-drawer-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clarity-task-card,
+  .clarity-task-drawer,
+  .clarity-task-drawer-scrim,
+  .clarity-task-skeleton {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}

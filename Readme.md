@@ -68,9 +68,11 @@ Client (React/TS) ──> FastAPI backend ──> Supabase (Postgres/Auth/Realti
 ```bash
 # Backend
 cd backend
-python -m venv venv && source venv/bin/activate
+python -m venv venv
+# Windows: venv\Scripts\activate
+# macOS/Linux: source venv/bin/activate
 pip install -r requirements.txt
-uvicorn main:app --reload
+uvicorn app.main:app --reload
 
 # Frontend
 cd frontend
@@ -78,7 +80,36 @@ npm install
 npm run dev
 ```
 
-Environment variables needed (see `.env.example`): Supabase URL/key, GitHub App credentials, OpenRouter/HF API key (free tier).
+Environment variables: copy `backend/.env.example` → `backend/.env` and
+`frontend/.env.example` → `frontend/.env`. Do not commit `.env` files or secrets.
+
+### Go live locally (real Supabase)
+
+For register/login, orgs, invites, and tasks against a live project:
+
+1. Paste Supabase **Project URL**, **anon**, **service_role**, and **JWT Secret**
+   into `backend/.env` (and URL + anon into `frontend/.env`) from
+   [Project Settings → API](https://supabase.com/dashboard).
+2. Set `VITE_AUTH_BYPASS=false` and `VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1`.
+3. Run SQL migrations `001` → `003` in the Supabase SQL Editor
+   (`backend/supabase/migrations/`).
+4. Restart uvicorn and `npm run dev`.
+
+Full checklist: [docs/go-live-locally.md](docs/go-live-locally.md).
+
+Leave `VITE_AUTH_BYPASS` unset/true only to explore the UI without Supabase.
+
+### GitHub App (local webhooks)
+
+Fill `GITHUB_*` in `backend/.env` (see `.env.example`), including
+`GITHUB_APP_SLUG` for **Connect GitHub**. Save the App private key as a `.pem`
+file and set `GITHUB_PRIVATE_KEY_PATH`. Forward webhooks with:
+
+```bash
+npx smee -u https://smee.io/YOUR_CHANNEL -t http://127.0.0.1:8000/api/v1/github/webhooks
+```
+
+Details: [docs/github-app.md](docs/github-app.md).
 
 ## License
 
