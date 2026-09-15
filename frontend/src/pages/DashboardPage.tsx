@@ -108,6 +108,7 @@ export function DashboardPage() {
           ) : showChat ? (
             <ChatPanel
               channels={chat.channels}
+              members={chat.members}
               activeChannel={chat.activeChannel}
               messages={chat.messages}
               hasMore={chat.hasMore}
@@ -124,6 +125,12 @@ export function DashboardPage() {
                   name,
                   description: description ?? null,
                 });
+              }}
+              onStartDm={async (userId) => {
+                await chat.startDm({ user_id: userId });
+              }}
+              onCreateGroup={async (name, memberIds) => {
+                await chat.createGroup({ name, member_ids: memberIds });
               }}
               onSend={async (body) => {
                 await chat.sendMessage({ body });

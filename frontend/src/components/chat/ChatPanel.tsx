@@ -1,14 +1,21 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Hash, Loader2, Plus, Send } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Hash, Loader2, MessageSquare, Plus, Send, Users } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { cn } from "@/lib/utils";
-import type { AuthUser, ChatChannel, ChatMessage } from "@/types";
+import {
+  conversationTitle,
+  type AuthUser,
+  type ChatChannel,
+  type ChatMessage,
+  type TeamMemberWithUser,
+} from "@/types";
 
 interface ChatPanelProps {
   channels: ChatChannel[];
+  members: TeamMemberWithUser[];
   activeChannel: ChatChannel | null;
   messages: ChatMessage[];
   hasMore: boolean;
@@ -21,10 +28,14 @@ interface ChatPanelProps {
   currentUser: AuthUser;
   onSelectChannel: (channelId: string) => void;
   onCreateChannel: (name: string, description?: string) => Promise<void>;
+  onStartDm: (userId: string) => Promise<void>;
+  onCreateGroup: (name: string, memberIds: string[]) => Promise<void>;
   onSend: (body: string) => Promise<void>;
   onLoadOlder: () => Promise<void>;
   onClearError: () => void;
 }
+
+type ComposeMode = "channel" | "dm" | "group" | null;
 
 function initialsFromMessage(message: ChatMessage): string {
   const source = message.author_name?.trim() || message.author_email;
@@ -48,8 +59,66 @@ function formatDay(iso: string): string {
   });
 }
 
+function ConversationIcon({ type }: { type: ChatChannel["channel_type"] }) {
+  if (type === "dm") {
+    return <MessageSquare className="size-3.5 shrink-0 opacity-70" aria-hidden />;
+  }
+  if (type === "group") {
+    return <Users className="size-3.5 shrink-0 opacity-70" aria-hidden />;
+  }
+  return <Hash className="size-3.5 shrink-0 opacity-70" aria-hidden />;
+}
+
+function ConversationList({
+  title,
+  items,
+  activeId,
+  currentUserId,
+  onSelect,
+}: {
+  title: string;
+  items: ChatChannel[];
+  activeId: string | null | undefined;
+  currentUserId: string;
+  onSelect: (id: string) => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div className="mb-4">
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-light">
+        {title}
+      </p>
+      <ul className="flex flex-row gap-1 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible lg:pb-0">
+        {items.map((channel) => {
+          const active = channel.id === activeId;
+          const label = conversationTitle(channel, currentUserId);
+          return (
+            <li key={channel.id} className="shrink-0">
+              <button
+                type="button"
+                onClick={() => onSelect(channel.id)}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "clarity-focus flex w-full min-h-10 items-center gap-2 rounded-[var(--radius-sm)] px-3 text-left text-[13px] font-medium transition-colors",
+                  active
+                    ? "bg-accent text-primary"
+                    : "text-secondary-foreground hover:bg-secondary"
+                )}
+              >
+                <ConversationIcon type={channel.channel_type} />
+                <span className="truncate">{label}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 export function ChatPanel({
   channels,
+  members,
   activeChannel,
   messages,
   hasMore,
@@ -62,17 +131,39 @@ export function ChatPanel({
   currentUser,
   onSelectChannel,
   onCreateChannel,
+  onStartDm,
+  onCreateGroup,
   onSend,
   onLoadOlder,
   onClearError,
 }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
-  const [creating, setCreating] = useState(false);
+  const [composeMode, setComposeMode] = useState<ComposeMode>(null);
   const [newName, setNewName] = useState("");
+  const [groupName, setGroupName] = useState("");
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
+
+  const broadcastChannels = useMemo(
+    () => channels.filter((c) => c.channel_type === "channel"),
+    [channels]
+  );
+  const directChannels = useMemo(
+    () => channels.filter((c) => c.channel_type === "dm"),
+    [channels]
+  );
+  const groupChannels = useMemo(
+    () => channels.filter((c) => c.channel_type === "group"),
+    [channels]
+  );
+
+  const selectableMembers = useMemo(
+    () => members.filter((m) => m.user_id !== currentUser.id),
+    [members, currentUser.id]
+  );
 
   useEffect(() => {
     if (stickToBottom.current) {
@@ -81,6 +172,24 @@ export function ChatPanel({
   }, [messages, activeChannel?.id]);
 
   const displayError = localError ?? error;
+  const headerTitle = activeChannel
+    ? conversationTitle(activeChannel, currentUser.id)
+    : "Select a conversation";
+
+  function resetCompose() {
+    setComposeMode(null);
+    setNewName("");
+    setGroupName("");
+    setSelectedMemberIds([]);
+  }
+
+  function toggleMember(userId: string) {
+    setSelectedMemberIds((prev) =>
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId]
+    );
+  }
 
   async function handleSend(event: FormEvent) {
     event.preventDefault();
@@ -96,17 +205,39 @@ export function ChatPanel({
     }
   }
 
-  async function handleCreate(event: FormEvent) {
+  async function handleCreateChannel(event: FormEvent) {
     event.preventDefault();
     const name = newName.trim();
     if (!name) return;
     setLocalError(null);
     try {
       await onCreateChannel(name);
-      setNewName("");
-      setCreating(false);
+      resetCompose();
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : "Could not create channel");
+    }
+  }
+
+  async function handleStartDm(userId: string) {
+    setLocalError(null);
+    try {
+      await onStartDm(userId);
+      resetCompose();
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : "Could not start direct message");
+    }
+  }
+
+  async function handleCreateGroup(event: FormEvent) {
+    event.preventDefault();
+    const name = groupName.trim();
+    if (!name || selectedMemberIds.length === 0) return;
+    setLocalError(null);
+    try {
+      await onCreateGroup(name, selectedMemberIds);
+      resetCompose();
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : "Could not create group");
     }
   }
 
@@ -131,6 +262,15 @@ export function ChatPanel({
     );
   }
 
+  const placeholder =
+    activeChannel?.channel_type === "dm"
+      ? `Message ${headerTitle}`
+      : activeChannel?.channel_type === "group"
+        ? `Message ${headerTitle}`
+        : activeChannel
+          ? `Message #${activeChannel.name}`
+          : "Select a conversation first";
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -139,19 +279,43 @@ export function ChatPanel({
             Chat
           </h1>
           <p className="mt-1 max-w-xl text-[13px] leading-relaxed text-muted-light">
-            Team channels for the active workspace
+            Channels, direct messages, and groups for the active workspace
             {isDemo ? " · demo mode" : ""}.
           </p>
         </div>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={() => setCreating((v) => !v)}
-        >
-          <Plus className="size-3.5" aria-hidden />
-          New channel
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() =>
+              setComposeMode((v) => (v === "channel" ? null : "channel"))
+            }
+          >
+            <Plus className="size-3.5" aria-hidden />
+            New channel
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setComposeMode((v) => (v === "dm" ? null : "dm"))}
+          >
+            <MessageSquare className="size-3.5" aria-hidden />
+            New message
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() =>
+              setComposeMode((v) => (v === "group" ? null : "group"))
+            }
+          >
+            <Users className="size-3.5" aria-hidden />
+            New group
+          </Button>
+        </div>
       </div>
 
       {displayError && (
@@ -173,9 +337,9 @@ export function ChatPanel({
         </div>
       )}
 
-      {creating && (
+      {composeMode === "channel" && (
         <form
-          onSubmit={(e) => void handleCreate(e)}
+          onSubmit={(e) => void handleCreateChannel(e)}
           className="flex flex-wrap items-end gap-3 border-b border-border-subtle pb-4"
         >
           <label className="flex min-w-[200px] flex-1 flex-col gap-1.5">
@@ -193,56 +357,146 @@ export function ChatPanel({
           <Button type="submit" size="sm" disabled={!newName.trim()}>
             Create
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setCreating(false);
-              setNewName("");
-            }}
-          >
+          <Button type="button" variant="ghost" size="sm" onClick={resetCompose}>
             Cancel
           </Button>
         </form>
       )}
 
+      {composeMode === "dm" && (
+        <div className="border-b border-border-subtle pb-4">
+          <p className="mb-2 text-[11px] font-medium text-muted-light">
+            Message a teammate
+          </p>
+          {selectableMembers.length === 0 ? (
+            <p className="text-[12px] text-muted-light">
+              No other team members yet. Invite someone from Team, then start a
+              DM here.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {selectableMembers.map((member) => (
+                <li key={member.user_id}>
+                  <button
+                    type="button"
+                    onClick={() => void handleStartDm(member.user_id)}
+                    className="clarity-focus flex w-full min-h-10 items-center justify-between rounded-[var(--radius-sm)] px-3 text-left text-[13px] hover:bg-secondary"
+                  >
+                    <span className="font-medium text-text-body">
+                      {member.full_name?.trim() || member.email}
+                    </span>
+                    <span className="text-[11px] text-muted-light">
+                      {member.email}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-3">
+            <Button type="button" variant="ghost" size="sm" onClick={resetCompose}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {composeMode === "group" && (
+        <form
+          onSubmit={(e) => void handleCreateGroup(e)}
+          className="flex flex-col gap-3 border-b border-border-subtle pb-4"
+        >
+          <label className="flex max-w-md flex-col gap-1.5">
+            <span className="text-[11px] font-medium text-muted-light">
+              Group name
+            </span>
+            <input
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              placeholder="Launch crew"
+              className="clarity-focus h-11 rounded-[var(--radius-sm)] border border-border bg-card px-3 text-[13px] text-text-body outline-none placeholder:text-[var(--text-placeholder)]"
+              autoFocus
+            />
+          </label>
+          <div>
+            <p className="mb-2 text-[11px] font-medium text-muted-light">
+              Members
+            </p>
+            {selectableMembers.length === 0 ? (
+              <p className="text-[12px] text-muted-light">
+                Invite teammates before creating a group.
+              </p>
+            ) : (
+              <ul className="flex max-h-40 flex-col gap-1 overflow-y-auto">
+                {selectableMembers.map((member) => {
+                  const checked = selectedMemberIds.includes(member.user_id);
+                  return (
+                    <li key={member.user_id}>
+                      <label className="flex min-h-10 cursor-pointer items-center gap-3 rounded-[var(--radius-sm)] px-3 text-[13px] hover:bg-secondary">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleMember(member.user_id)}
+                          className="size-4 accent-[var(--primary)]"
+                        />
+                        <span className="font-medium text-text-body">
+                          {member.full_name?.trim() || member.email}
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="submit"
+              size="sm"
+              disabled={!groupName.trim() || selectedMemberIds.length === 0}
+            >
+              Create group
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={resetCompose}>
+              Cancel
+            </Button>
+          </div>
+        </form>
+      )}
+
       <div className="grid min-h-[560px] gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
         <aside className="flex flex-col border-r-0 lg:border-r lg:border-border-subtle lg:pr-4">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-light">
-            Channels
-          </p>
           {loadingChannels ? (
             <div className="flex items-center gap-2 py-6 text-[12px] text-muted-light">
               <Loader2 className="size-3.5 animate-spin" aria-hidden />
               Loading…
             </div>
           ) : channels.length === 0 ? (
-            <p className="py-6 text-[12px] text-muted-light">No channels yet.</p>
+            <p className="py-6 text-[12px] text-muted-light">No conversations yet.</p>
           ) : (
-            <ul className="flex flex-row gap-1 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible lg:pb-0">
-              {channels.map((channel) => {
-                const active = channel.id === activeChannel?.id;
-                return (
-                  <li key={channel.id} className="shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => onSelectChannel(channel.id)}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(
-                        "clarity-focus flex w-full min-h-10 items-center gap-2 rounded-[var(--radius-sm)] px-3 text-left text-[13px] font-medium transition-colors",
-                        active
-                          ? "bg-accent text-primary"
-                          : "text-secondary-foreground hover:bg-secondary"
-                      )}
-                    >
-                      <Hash className="size-3.5 shrink-0 opacity-70" aria-hidden />
-                      <span className="truncate">{channel.name}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+            <>
+              <ConversationList
+                title="Channels"
+                items={broadcastChannels}
+                activeId={activeChannel?.id}
+                currentUserId={currentUser.id}
+                onSelect={onSelectChannel}
+              />
+              <ConversationList
+                title="Direct"
+                items={directChannels}
+                activeId={activeChannel?.id}
+                currentUserId={currentUser.id}
+                onSelect={onSelectChannel}
+              />
+              <ConversationList
+                title="Groups"
+                items={groupChannels}
+                activeId={activeChannel?.id}
+                currentUserId={currentUser.id}
+                onSelect={onSelectChannel}
+              />
+            </>
           )}
         </aside>
 
@@ -251,15 +505,27 @@ export function ChatPanel({
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="flex size-6 items-center justify-center rounded-md bg-accent text-primary">
-                  <Hash className="size-3.5" aria-hidden />
+                  {activeChannel ? (
+                    <ConversationIcon type={activeChannel.channel_type} />
+                  ) : (
+                    <Hash className="size-3.5" aria-hidden />
+                  )}
                 </span>
                 <h2 className="truncate text-[14px] font-semibold text-card-foreground">
-                  {activeChannel?.name ?? "Select a channel"}
+                  {headerTitle}
                 </h2>
               </div>
-              {activeChannel?.description && (
+              {activeChannel?.channel_type === "channel" &&
+                activeChannel.description && (
+                  <p className="mt-1 truncate text-[11px] text-muted-light">
+                    {activeChannel.description}
+                  </p>
+                )}
+              {activeChannel?.channel_type === "group" && (
                 <p className="mt-1 truncate text-[11px] text-muted-light">
-                  {activeChannel.description}
+                  {activeChannel.members
+                    .map((m) => m.full_name?.trim() || m.email)
+                    .join(", ")}
                 </p>
               )}
             </div>
@@ -303,7 +569,7 @@ export function ChatPanel({
                   No messages yet
                 </p>
                 <p className="max-w-sm text-[12px] text-muted-light">
-                  Start the thread for #{activeChannel?.name ?? "this channel"}.
+                  Start the thread for {headerTitle}.
                 </p>
               </div>
             ) : (
@@ -369,16 +635,8 @@ export function ChatPanel({
             className="flex items-center gap-2 border-t border-border-subtle px-4 py-3"
           >
             <input
-              aria-label={
-                activeChannel
-                  ? `Message #${activeChannel.name}`
-                  : "Message channel"
-              }
-              placeholder={
-                activeChannel
-                  ? `Message #${activeChannel.name}`
-                  : "Select a channel first"
-              }
+              aria-label={placeholder}
+              placeholder={placeholder}
               value={draft}
               disabled={!activeChannel || sending}
               onChange={(e) => setDraft(e.target.value)}

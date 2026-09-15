@@ -9,6 +9,8 @@ import type {
   AuthSession,
   ChatChannel,
   ChatChannelCreate,
+  ChatDirectMessageCreate,
+  ChatGroupCreate,
   ChatMessage,
   ChatMessageCreate,
   ChatMessagePage,
@@ -29,6 +31,7 @@ import type {
   TaskUpdate,
   Team,
   TeamCreate,
+  TeamMemberWithUser,
 } from "@/types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL as string;
@@ -140,6 +143,9 @@ export const api = {
     list: (orgId: string) => request<Team[]>(`/teams/org/${orgId}`),
 
     get: (teamId: string) => request<Team>(`/teams/${teamId}`),
+
+    listMembers: (teamId: string) =>
+      request<TeamMemberWithUser[]>(`/teams/${teamId}/members`),
   },
 
   invites: {
@@ -197,6 +203,18 @@ export const api = {
 
     createChannel: (teamId: string, payload: ChatChannelCreate) =>
       request<ChatChannel>(`/teams/${teamId}/channels`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+
+    startDm: (teamId: string, payload: ChatDirectMessageCreate) =>
+      request<ChatChannel>(`/teams/${teamId}/dms`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+
+    createGroup: (teamId: string, payload: ChatGroupCreate) =>
+      request<ChatChannel>(`/teams/${teamId}/groups`, {
         method: "POST",
         body: JSON.stringify(payload),
       }),

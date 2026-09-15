@@ -5,13 +5,46 @@
 import type {
   ChatChannel,
   ChatChannelCreate,
+  ChatDirectMessageCreate,
+  ChatGroupCreate,
   ChatMessage,
   ChatMessageCreate,
   ChatMessagePage,
 } from "@/types/chat";
+import type { TeamMemberWithUser } from "@/types/team";
 
 const channelsByTeam = new Map<string, ChatChannel[]>();
 const messagesByChannel = new Map<string, ChatMessage[]>();
+
+const DEMO_MEMBERS: TeamMemberWithUser[] = [
+  {
+    id: "demo-mem-1",
+    team_id: "demo-team",
+    user_id: "demo-peer-1",
+    role: "member",
+    joined_at: new Date().toISOString(),
+    email: "alex@clarity.local",
+    full_name: "Alex Rivera",
+  },
+  {
+    id: "demo-mem-2",
+    team_id: "demo-team",
+    user_id: "demo-peer-2",
+    role: "member",
+    joined_at: new Date().toISOString(),
+    email: "jordan@clarity.local",
+    full_name: "Jordan Lee",
+  },
+  {
+    id: "demo-mem-3",
+    team_id: "demo-team",
+    user_id: "demo-peer-3",
+    role: "project_manager",
+    joined_at: new Date().toISOString(),
+    email: "sam@clarity.local",
+    full_name: "Sam Okonkwo",
+  },
+];
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -19,6 +52,16 @@ function nowIso(): string {
 
 function id(): string {
   return crypto.randomUUID();
+}
+
+function sortChannels(channels: ChatChannel[]): ChatChannel[] {
+  const order = { channel: 0, dm: 1, group: 2 } as const;
+  return [...channels].sort(
+    (a, b) =>
+      order[a.channel_type] - order[b.channel_type] ||
+      Number(b.is_default) - Number(a.is_default) ||
+      a.name.localeCompare(b.name)
+  );
 }
 
 function ensureGeneral(teamId: string, userId: string): ChatChannel[] {
@@ -30,8 +73,10 @@ function ensureGeneral(teamId: string, userId: string): ChatChannel[] {
       name: "general",
       description: "Default team channel",
       is_default: true,
+      channel_type: "channel",
       created_by: userId,
       created_at: nowIso(),
+      members: [],
     };
     channels = [general];
     channelsByTeam.set(teamId, channels);
@@ -50,8 +95,26 @@ function ensureGeneral(teamId: string, userId: string): ChatChannel[] {
   return channels;
 }
 
+export function listDemoTeamMembers(
+  teamId: string,
+  currentUser: { id: string; email: string; full_name?: string | null }
+): TeamMemberWithUser[] {
+  return [
+    {
+      id: "demo-self",
+      team_id: teamId,
+      user_id: currentUser.id,
+      role: "owner",
+      joined_at: nowIso(),
+      email: currentUser.email,
+      full_name: currentUser.full_name ?? "Demo User",
+    },
+    ...DEMO_MEMBERS.map((m) => ({ ...m, team_id: teamId })),
+  ];
+}
+
 export function listDemoChannels(teamId: string, userId: string): ChatChannel[] {
-  return ensureGeneral(teamId, userId);
+  return sortChannels(ensureGeneral(teamId, userId));
 }
 
 export function createDemoChannel(
@@ -61,7 +124,7 @@ export function createDemoChannel(
 ): ChatChannel {
   const channels = ensureGeneral(teamId, userId);
   const name = payload.name.trim().toLowerCase().replace(/\s+/g, "-");
-  if (channels.some((c) => c.name === name)) {
+  if (channels.some((c) => c.channel_type === "channel" && c.name === name)) {
     throw new Error("A channel with that name already exists");
   }
   const channel: ChatChannel = {
@@ -70,14 +133,109 @@ export function createDemoChannel(
     name,
     description: payload.description ?? null,
     is_default: false,
+    channel_type: "channel",
     created_by: userId,
     created_at: nowIso(),
+    members: [],
   };
   channels.push(channel);
-  channelsByTeam.set(
-    teamId,
-    [...channels].sort((a, b) => Number(b.is_default) - Number(a.is_default) || a.name.localeCompare(b.name))
+  channelsByTeam.set(teamId, sortChannels(channels));
+  messagesByChannel.set(channel.id, []);
+  return channel;
+}
+
+export function startDemoDm(
+  teamId: string,
+  currentUser: { id: string; email: string; full_name?: string | null },
+  payload: ChatDirectMessageCreate
+): ChatChannel {
+  const channels = ensureGeneral(teamId, currentUser.id);
+  const peer =
+    DEMO_MEMBERS.find((m) => m.user_id === payload.user_id) ??
+    listDemoTeamMembers(teamId, currentUser).find(
+      (m) => m.user_id === payload.user_id
+    );
+  if (!peer || peer.user_id === currentUser.id) {
+    throw new Error("Recipient must be a member of this team");
+  }
+
+  const existing = channels.find(
+    (c) =>
+      c.channel_type === "dm" &&
+      c.members.some((m) => m.user_id === currentUser.id) &&
+      c.members.some((m) => m.user_id === payload.user_id)
   );
+  if (existing) return existing;
+
+  const channel: ChatChannel = {
+    id: id(),
+    team_id: teamId,
+    name: peer.full_name?.trim() || peer.email,
+    description: null,
+    is_default: false,
+    channel_type: "dm",
+    created_by: currentUser.id,
+    created_at: nowIso(),
+    members: [
+      {
+        user_id: currentUser.id,
+        email: currentUser.email,
+        full_name: currentUser.full_name ?? null,
+      },
+      {
+        user_id: peer.user_id,
+        email: peer.email,
+        full_name: peer.full_name,
+      },
+    ],
+  };
+  channels.push(channel);
+  channelsByTeam.set(teamId, sortChannels(channels));
+  messagesByChannel.set(channel.id, []);
+  return channel;
+}
+
+export function createDemoGroup(
+  teamId: string,
+  currentUser: { id: string; email: string; full_name?: string | null },
+  payload: ChatGroupCreate
+): ChatChannel {
+  const channels = ensureGeneral(teamId, currentUser.id);
+  const name = payload.name.trim();
+  if (!name) throw new Error("Group name cannot be empty");
+  const roster = listDemoTeamMembers(teamId, currentUser);
+  const others = payload.member_ids
+    .filter((uid) => uid !== currentUser.id)
+    .map((uid) => roster.find((m) => m.user_id === uid))
+    .filter(Boolean) as TeamMemberWithUser[];
+  if (others.length === 0) {
+    throw new Error("Group requires at least one other member");
+  }
+
+  const channel: ChatChannel = {
+    id: id(),
+    team_id: teamId,
+    name,
+    description: null,
+    is_default: false,
+    channel_type: "group",
+    created_by: currentUser.id,
+    created_at: nowIso(),
+    members: [
+      {
+        user_id: currentUser.id,
+        email: currentUser.email,
+        full_name: currentUser.full_name ?? null,
+      },
+      ...others.map((m) => ({
+        user_id: m.user_id,
+        email: m.email,
+        full_name: m.full_name,
+      })),
+    ],
+  };
+  channels.push(channel);
+  channelsByTeam.set(teamId, sortChannels(channels));
   messagesByChannel.set(channel.id, []);
   return channel;
 }

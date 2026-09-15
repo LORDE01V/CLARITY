@@ -1,5 +1,5 @@
 /**
- * Loads team chat channels and messages; polls for new messages.
+ * Loads team chat conversations and messages; polls for new messages.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -8,15 +8,21 @@ import { useWorkspace } from "@/components/WorkspaceProvider";
 import { api, ApiError } from "@/lib/api";
 import {
   createDemoChannel,
+  createDemoGroup,
   listDemoChannels,
   listDemoMessages,
+  listDemoTeamMembers,
   sendDemoMessage,
+  startDemoDm,
 } from "@/lib/chat/demo";
 import type {
   ChatChannel,
   ChatChannelCreate,
+  ChatDirectMessageCreate,
+  ChatGroupCreate,
   ChatMessage,
   ChatMessageCreate,
+  TeamMemberWithUser,
 } from "@/types";
 
 const POLL_MS = 4000;
@@ -29,10 +35,21 @@ function formatError(err: unknown, fallback: string): string {
   return fallback;
 }
 
+function sortConversations(channels: ChatChannel[]): ChatChannel[] {
+  const order = { channel: 0, dm: 1, group: 2 } as const;
+  return [...channels].sort(
+    (a, b) =>
+      order[a.channel_type] - order[b.channel_type] ||
+      Number(b.is_default) - Number(a.is_default) ||
+      a.name.localeCompare(b.name)
+  );
+}
+
 export function useTeamChat() {
   const { user, isBypassMode } = useAuth();
   const { team } = useWorkspace();
   const [channels, setChannels] = useState<ChatChannel[]>([]);
+  const [members, setMembers] = useState<TeamMemberWithUser[]>([]);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [hasMore, setHasMore] = useState(false);
@@ -49,6 +66,7 @@ export function useTeamChat() {
   const refreshChannels = useCallback(async () => {
     if (!teamId) {
       setChannels([]);
+      setMembers([]);
       setActiveChannelId(null);
       setMessages([]);
       setLoadingChannels(false);
@@ -58,21 +76,37 @@ export function useTeamChat() {
     setLoadingChannels(true);
     setError(null);
     try {
-      const next = isBypassMode
-        ? listDemoChannels(teamId, userId)
-        : await api.chat.listChannels(teamId);
-      setChannels(next);
-      setActiveChannelId((prev) => {
-        if (prev && next.some((c) => c.id === prev)) return prev;
-        return next.find((c) => c.is_default)?.id ?? next[0]?.id ?? null;
-      });
+      if (isBypassMode) {
+        const demoUser = user ?? {
+          id: userId,
+          email: "demo@clarity.local",
+          full_name: "Demo User",
+        };
+        setChannels(listDemoChannels(teamId, userId));
+        setMembers(listDemoTeamMembers(teamId, demoUser));
+      } else {
+        const [next, roster] = await Promise.all([
+          api.chat.listChannels(teamId),
+          api.teams.listMembers(teamId),
+        ]);
+        setChannels(next);
+        setMembers(roster);
+      }
     } catch (err) {
       setChannels([]);
-      setError(formatError(err, "Could not load channels"));
+      setMembers([]);
+      setError(formatError(err, "Could not load conversations"));
     } finally {
       setLoadingChannels(false);
     }
-  }, [teamId, isBypassMode, userId]);
+  }, [teamId, isBypassMode, userId, user]);
+
+  useEffect(() => {
+    setActiveChannelId((prev) => {
+      if (prev && channels.some((c) => c.id === prev)) return prev;
+      return channels.find((c) => c.is_default)?.id ?? channels[0]?.id ?? null;
+    });
+  }, [channels]);
 
   const loadMessages = useCallback(
     async (channelId: string) => {
@@ -165,21 +199,50 @@ export function useTeamChat() {
     return () => window.clearInterval(handle);
   }, [teamId, activeChannelId, isBypassMode]);
 
+  const upsertChannel = useCallback((created: ChatChannel) => {
+    setChannels((prev) => {
+      const without = prev.filter((c) => c.id !== created.id);
+      return sortConversations([...without, created]);
+    });
+    setActiveChannelId(created.id);
+  }, []);
+
   const createChannel = useCallback(
     async (payload: ChatChannelCreate) => {
       if (!teamId) throw new Error("No active team");
       const created = isBypassMode
         ? createDemoChannel(teamId, userId, payload)
         : await api.chat.createChannel(teamId, payload);
-      setChannels((prev) =>
-        [...prev, created].sort(
-          (a, b) => Number(b.is_default) - Number(a.is_default) || a.name.localeCompare(b.name)
-        )
-      );
-      setActiveChannelId(created.id);
+      upsertChannel(created);
       return created;
     },
-    [teamId, isBypassMode, userId]
+    [teamId, isBypassMode, userId, upsertChannel]
+  );
+
+  const startDm = useCallback(
+    async (payload: ChatDirectMessageCreate) => {
+      if (!teamId) throw new Error("No active team");
+      if (!user) throw new Error("You must be signed in");
+      const created = isBypassMode
+        ? startDemoDm(teamId, user, payload)
+        : await api.chat.startDm(teamId, payload);
+      upsertChannel(created);
+      return created;
+    },
+    [teamId, isBypassMode, user, upsertChannel]
+  );
+
+  const createGroup = useCallback(
+    async (payload: ChatGroupCreate) => {
+      if (!teamId) throw new Error("No active team");
+      if (!user) throw new Error("You must be signed in");
+      const created = isBypassMode
+        ? createDemoGroup(teamId, user, payload)
+        : await api.chat.createGroup(teamId, payload);
+      upsertChannel(created);
+      return created;
+    },
+    [teamId, isBypassMode, user, upsertChannel]
   );
 
   const sendMessage = useCallback(
@@ -219,6 +282,7 @@ export function useTeamChat() {
 
   return {
     channels,
+    members,
     activeChannel,
     activeChannelId,
     messages,
@@ -231,6 +295,8 @@ export function useTeamChat() {
     hasTeam: Boolean(teamId),
     selectChannel,
     createChannel,
+    startDm,
+    createGroup,
     sendMessage,
     loadOlder,
     refreshChannels,
