@@ -38,6 +38,33 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/** Build AuthUser from a Supabase session when /auth/me is unavailable. */
+function userFromSession(session: {
+  access_token: string;
+  user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> };
+}): AuthUser {
+  const meta = session.user.user_metadata as { full_name?: string } | undefined;
+  return {
+    id: String(session.user.id),
+    email: session.user.email ?? "",
+    full_name: meta?.full_name ?? null,
+  };
+}
+
+async function resolveUserFromSession(session: {
+  access_token: string;
+  user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> };
+}): Promise<AuthUser> {
+  try {
+    // Pass token explicitly — never call getSession() under onAuthStateChange.
+    const me = await api.auth.me(session.access_token);
+    return { ...me, id: String(me.id) };
+  } catch {
+    // Keep the session user if /auth/me fails (JWT sync / API blip).
+    return userFromSession(session);
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const bypassMode = isAuthBypassEnabled();
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -57,22 +84,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    supabase.auth.getSession().then(({ data }) => {
+    let cancelled = false;
+
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (cancelled) return;
       if (data.session) {
-        api.auth.me().then(setUser).catch(() => setUser(null));
+        const next = await resolveUserFromSession(data.session);
+        if (!cancelled) setUser(next);
       }
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        api.auth.me().then(setUser).catch(() => setUser(null));
-      } else {
-        setUser(null);
-      }
+      // setTimeout(0): never touch auth/network while Supabase holds the auth lock
+      // (await getSession inside this callback deadlocks setSession → stuck "Signing in...").
+      window.setTimeout(() => {
+        if (cancelled) return;
+        if (!session) {
+          setUser(null);
+          return;
+        }
+        void resolveUserFromSession(session).then((next) => {
+          if (!cancelled) setUser(next);
+        });
+      }, 0);
     });
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      listener.subscription.unsubscribe();
+    };
   }, [bypassMode]);
 
   const login = useCallback(
@@ -93,7 +134,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         access_token: session.access_token,
         refresh_token: session.refresh_token,
       });
-      setUser(session.user);
+      // Normalize id to string in case JSON ever varies; keep UI unblocked.
+      setUser({ ...session.user, id: String(session.user.id) });
     },
     [bypassMode]
   );
@@ -116,7 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         access_token: session.access_token,
         refresh_token: session.refresh_token,
       });
-      setUser(session.user);
+      setUser({ ...session.user, id: String(session.user.id) });
     },
     [bypassMode]
   );

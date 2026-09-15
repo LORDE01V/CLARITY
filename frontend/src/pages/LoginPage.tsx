@@ -33,7 +33,7 @@ export function LoginPage() {
 
     try {
       await login({ email, password });
-      navigate(nextPath);
+      navigate(nextPath, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

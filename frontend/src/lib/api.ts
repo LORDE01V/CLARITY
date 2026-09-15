@@ -57,22 +57,32 @@ function formatErrorDetail(detail: unknown): string {
 
 async function request<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit & { accessToken?: string | null } = {}
 ): Promise<T> {
-  const token = await getAccessToken();
+  const { accessToken, ...init } = options;
+  const token =
+    accessToken === undefined ? await getAccessToken() : accessToken;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(options.headers as Record<string, string>),
+    ...(init.headers as Record<string, string>),
   };
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers,
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      "Cannot reach the API. Check that the backend is running and VITE_API_BASE_URL is correct."
+    );
+  }
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({ detail: "Request failed" }));
@@ -100,7 +110,9 @@ export const api = {
         body: JSON.stringify(payload),
       }),
 
-    me: () => request<AuthSession["user"]>("/auth/me"),
+    /** Optional accessToken avoids getSession() inside onAuthStateChange (deadlock). */
+    me: (accessToken?: string) =>
+      request<AuthSession["user"]>("/auth/me", { accessToken }),
   },
 
   orgs: {

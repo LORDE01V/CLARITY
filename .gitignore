@@ -19,6 +19,14 @@ htmlcov/
 node_modules/
 dist/
 .vite/
+*.tsbuildinfo
+
+# Local IDE / Cursor / Impeccable (keep on disk, never commit)
+.cursor/
+.impeccable/
+.github/agents/
+.github/skills/
+.github/hooks/
 
 # IDE
 .idea/
