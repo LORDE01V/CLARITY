@@ -52,7 +52,7 @@ export interface StatCard {
 export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard },
   { label: "Tasks", icon: SquareCheckBig },
-  { label: "Chat", icon: MessageCircle, count: "4" },
+  { label: "Chat", icon: MessageCircle },
   { label: "Team", icon: Users },
   { label: "Meetings", icon: Video },
   { label: "Code", icon: Code2, count: "3" },

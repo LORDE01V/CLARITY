@@ -3,6 +3,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useWorkspace } from "@/components/WorkspaceProvider";
 import { AppBackground } from "@/components/layout/AppBackground";
 import { LinearExpandMenu } from "@/components/layout/LinearExpandMenu";
+import { ChatPanel } from "@/components/chat/ChatPanel";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { CodeActivityPanel } from "@/components/dashboard/CodeActivityPanel";
 import { GitHubActivity } from "@/components/dashboard/GitHubActivity";
@@ -13,6 +14,7 @@ import { TeamChat } from "@/components/dashboard/TeamChat";
 import { UpcomingMeetings } from "@/components/dashboard/UpcomingMeetings";
 import { TasksBoard } from "@/components/tasks/TasksBoard";
 import { TeamWorkspacePanel } from "@/components/workspace/TeamWorkspacePanel";
+import { useTeamChat } from "@/hooks/useTeamChat";
 import { useTeamTasks } from "@/hooks/useTeamTasks";
 import type { TaskStatus } from "@/types";
 
@@ -35,6 +37,7 @@ export function DashboardPage() {
     removeTask,
     clearError,
   } = useTeamTasks();
+  const chat = useTeamChat();
 
   if (!user) {
     return null;
@@ -42,6 +45,7 @@ export function DashboardPage() {
 
   const showTeam = activeNav === "Team";
   const showTasks = activeNav === "Tasks";
+  const showChat = activeNav === "Chat";
   const showCode = activeNav === "Code";
 
   return (
@@ -101,6 +105,32 @@ export function DashboardPage() {
               }}
               onClearError={clearError}
             />
+          ) : showChat ? (
+            <ChatPanel
+              channels={chat.channels}
+              activeChannel={chat.activeChannel}
+              messages={chat.messages}
+              hasMore={chat.hasMore}
+              loadingChannels={chat.loadingChannels}
+              loadingMessages={chat.loadingMessages}
+              sending={chat.sending}
+              error={chat.error}
+              isDemo={chat.isDemo}
+              hasTeam={chat.hasTeam}
+              currentUser={user}
+              onSelectChannel={chat.selectChannel}
+              onCreateChannel={async (name, description) => {
+                await chat.createChannel({
+                  name,
+                  description: description ?? null,
+                });
+              }}
+              onSend={async (body) => {
+                await chat.sendMessage({ body });
+              }}
+              onLoadOlder={chat.loadOlder}
+              onClearError={chat.clearError}
+            />
           ) : showCode ? (
             <CodeActivityPanel />
           ) : (
@@ -115,7 +145,7 @@ export function DashboardPage() {
 
                 <div className="flex flex-col gap-6">
                   <UpcomingMeetings />
-                  <TeamChat />
+                  <TeamChat onOpenChat={() => setActiveNav("Chat")} />
                 </div>
               </div>
             </>

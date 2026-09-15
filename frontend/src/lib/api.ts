@@ -7,6 +7,11 @@
 import { getAccessToken } from "./supabase";
 import type {
   AuthSession,
+  ChatChannel,
+  ChatChannelCreate,
+  ChatMessage,
+  ChatMessageCreate,
+  ChatMessagePage,
   GitHubActivityItem,
   GitHubConnect,
   GitHubStatus,
@@ -184,6 +189,45 @@ export const api = {
       request<void>(`/teams/${teamId}/tasks/${taskId}`, {
         method: "DELETE",
       }),
+  },
+
+  chat: {
+    listChannels: (teamId: string) =>
+      request<ChatChannel[]>(`/teams/${teamId}/channels`),
+
+    createChannel: (teamId: string, payload: ChatChannelCreate) =>
+      request<ChatChannel>(`/teams/${teamId}/channels`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+
+    listMessages: (
+      teamId: string,
+      channelId: string,
+      opts: { limit?: number; before?: string; after?: string } = {}
+    ) => {
+      const params = new URLSearchParams();
+      if (opts.limit != null) params.set("limit", String(opts.limit));
+      if (opts.before) params.set("before", opts.before);
+      if (opts.after) params.set("after", opts.after);
+      const query = params.toString();
+      return request<ChatMessagePage>(
+        `/teams/${teamId}/channels/${channelId}/messages${query ? `?${query}` : ""}`
+      );
+    },
+
+    sendMessage: (
+      teamId: string,
+      channelId: string,
+      payload: ChatMessageCreate
+    ) =>
+      request<ChatMessage>(
+        `/teams/${teamId}/channels/${channelId}/messages`,
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }
+      ),
   },
 
   github: {

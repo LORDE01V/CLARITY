@@ -1,4 +1,11 @@
 export type { AuthUser, AuthSession, LoginRequest, RegisterRequest } from "./auth";
+export type {
+  ChatChannel,
+  ChatChannelCreate,
+  ChatMessage,
+  ChatMessageCreate,
+  ChatMessagePage,
+} from "./chat";
 export type { GitHubActivityItem, GitHubConnect, GitHubStatus } from "./github";
 export type { Invite, InviteAcceptResponse, InviteCreate } from "./invite";
 export type { Organization, OrganizationCreate, OrganizationSummary } from "./org";
