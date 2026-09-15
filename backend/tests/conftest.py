@@ -12,6 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core.config import Settings
+from app.db.repositories.chat_repository import InMemoryChatRepository
 from app.db.repositories.invite_repository import InMemoryInviteRepository
 from app.db.repositories.org_repository import InMemoryOrganizationRepository
 from app.db.repositories.task_repository import InMemoryTaskRepository
@@ -21,6 +22,7 @@ from app.db.repositories.team_repository import (
 )
 from app.dependencies.auth import get_current_user
 from app.dependencies.providers import (
+    get_chat_service,
     get_invite_service,
     get_org_service,
     get_task_service,
@@ -31,6 +33,7 @@ from app.models.auth import AuthUser
 from app.models.enums import Role
 from app.models.org import OrganizationCreate
 from app.models.team import TeamCreate
+from app.services.chat_service import ChatService
 from app.services.invite_service import InviteService
 from app.services.org_service import OrganizationService
 from app.services.task_service import TaskService
@@ -77,6 +80,7 @@ def repos():
         "member": InMemoryMemberRepository(),
         "invite": InMemoryInviteRepository(),
         "task": InMemoryTaskRepository(),
+        "chat": InMemoryChatRepository(),
     }
 
 
@@ -118,6 +122,14 @@ def task_service(repos, team_service) -> TaskService:
 
 
 @pytest.fixture
+def chat_service(repos, team_service) -> ChatService:
+    return ChatService(
+        chat_repo=repos["chat"],
+        team_service=team_service,
+    )
+
+
+@pytest.fixture
 async def seeded_org(repos, org_service, owner_user):
     """Create an org with a default team and owner membership."""
     org = await org_service.create_organization(
@@ -129,7 +141,15 @@ async def seeded_org(repos, org_service, owner_user):
 
 
 @pytest.fixture
-def client(repos, org_service, team_service, invite_service, task_service, owner_user):
+def client(
+    repos,
+    org_service,
+    team_service,
+    invite_service,
+    task_service,
+    chat_service,
+    owner_user,
+):
     """FastAPI test client with in-memory services and auth override."""
     app = create_app()
 
@@ -141,6 +161,7 @@ def client(repos, org_service, team_service, invite_service, task_service, owner
     app.dependency_overrides[get_team_service] = lambda: team_service
     app.dependency_overrides[get_invite_service] = lambda: invite_service
     app.dependency_overrides[get_task_service] = lambda: task_service
+    app.dependency_overrides[get_chat_service] = lambda: chat_service
 
     with TestClient(app) as test_client:
         yield test_client

@@ -1,6 +1,7 @@
 """Service and repository dependency providers."""
 
 from app.core.config import get_settings
+from app.db.repositories.chat_repository import SupabaseChatRepository
 from app.db.repositories.github_event_repository import get_shared_github_event_store
 from app.db.repositories.github_installation_repository import (
     get_shared_github_installation_store,
@@ -14,6 +15,7 @@ from app.db.repositories.team_repository import (
 )
 from app.db.supabase import get_supabase_client
 from app.services.auth_service import AuthService
+from app.services.chat_service import ChatService
 from app.services.github_service import GitHubService
 from app.services.invite_service import InviteService
 from app.services.org_service import OrganizationService
@@ -60,6 +62,15 @@ def get_task_service() -> TaskService:
     client = get_supabase_client()
     return TaskService(
         task_repo=SupabaseTaskRepository(client),
+        team_service=get_team_service(),
+    )
+
+
+def get_chat_service() -> ChatService:
+    """Provide ChatService with Supabase repositories."""
+    client = get_supabase_client()
+    return ChatService(
+        chat_repo=SupabaseChatRepository(client),
         team_service=get_team_service(),
     )
 
