@@ -32,6 +32,8 @@ class MemberRepository(Protocol):
 
     async def get_user_role_in_team(self, team_id: UUID, user_id: UUID) -> Role | None: ...
 
+    async def list_by_team(self, team_id: UUID) -> list[TeamMemberResponse]: ...
+
 
 class SupabaseTeamRepository:
     """Supabase-backed team repository."""
@@ -119,6 +121,16 @@ class SupabaseMemberRepository:
             return None
         return membership.role
 
+    async def list_by_team(self, team_id: UUID) -> list[TeamMemberResponse]:
+        result = (
+            self._client.table(self._table)
+            .select("*")
+            .eq("team_id", str(team_id))
+            .order("joined_at")
+            .execute()
+        )
+        return [TeamMemberResponse(**row) for row in (result.data or [])]
+
 
 class InMemoryTeamRepository:
     """In-memory team store for unit tests."""
@@ -176,3 +188,6 @@ class InMemoryMemberRepository:
         if membership is None:
             return None
         return membership.role
+
+    async def list_by_team(self, team_id: UUID) -> list[TeamMemberResponse]:
+        return [m for (tid, _), m in self._members.items() if tid == team_id]

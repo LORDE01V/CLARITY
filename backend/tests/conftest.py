@@ -33,11 +33,12 @@ from app.models.auth import AuthUser
 from app.models.enums import Role
 from app.models.org import OrganizationCreate
 from app.models.team import TeamCreate
-from app.services.chat_service import ChatService
+from app.services.chat_service import ChatService, DictUserProfileProvider
 from app.services.invite_service import InviteService
 from app.services.org_service import OrganizationService
 from app.services.task_service import TaskService
 from app.services.team_service import TeamService
+
 
 @pytest.fixture
 def settings() -> Settings:
@@ -85,6 +86,16 @@ def repos():
 
 
 @pytest.fixture
+def user_profiles(
+    owner_user, pm_user, member_user, invitee_user
+) -> DictUserProfileProvider:
+    profiles = DictUserProfileProvider()
+    for user in (owner_user, pm_user, member_user, invitee_user):
+        profiles.put(user)
+    return profiles
+
+
+@pytest.fixture
 def org_service(repos) -> OrganizationService:
     return OrganizationService(
         org_repo=repos["org"],
@@ -94,11 +105,12 @@ def org_service(repos) -> OrganizationService:
 
 
 @pytest.fixture
-def team_service(repos) -> TeamService:
+def team_service(repos, user_profiles) -> TeamService:
     return TeamService(
         team_repo=repos["team"],
         member_repo=repos["member"],
         org_repo=repos["org"],
+        user_profiles=user_profiles,
     )
 
 
@@ -122,10 +134,11 @@ def task_service(repos, team_service) -> TaskService:
 
 
 @pytest.fixture
-def chat_service(repos, team_service) -> ChatService:
+def chat_service(repos, team_service, user_profiles) -> ChatService:
     return ChatService(
         chat_repo=repos["chat"],
         team_service=team_service,
+        user_profiles=user_profiles,
     )
 
 

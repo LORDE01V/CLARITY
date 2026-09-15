@@ -37,11 +37,14 @@ def get_org_service() -> OrganizationService:
 
 def get_team_service() -> TeamService:
     """Provide TeamService with Supabase repositories."""
+    from app.services.chat_service import SupabaseUserProfileProvider
+
     client = get_supabase_client()
     return TeamService(
         team_repo=SupabaseTeamRepository(client),
         member_repo=SupabaseMemberRepository(client),
         org_repo=SupabaseOrganizationRepository(client),
+        user_profiles=SupabaseUserProfileProvider(client),
     )
 
 
@@ -67,11 +70,14 @@ def get_task_service() -> TaskService:
 
 
 def get_chat_service() -> ChatService:
-    """Provide ChatService with Supabase repositories."""
+    """Provide ChatService with Supabase repositories (service-role DB client)."""
+    from app.services.chat_service import SupabaseUserProfileProvider
+
     client = get_supabase_client()
     return ChatService(
         chat_repo=SupabaseChatRepository(client),
         team_service=get_team_service(),
+        user_profiles=SupabaseUserProfileProvider(client),
     )
 
 

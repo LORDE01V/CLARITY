@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends
 
 from app.dependencies.auth import CurrentUser
 from app.dependencies.providers import get_team_service
-from app.models.team import TeamCreate, TeamResponse
+from app.models.enums import Role
+from app.models.team import TeamCreate, TeamMemberWithUser, TeamResponse
 from app.services.team_service import TeamService
 
 router = APIRouter(prefix="/teams", tags=["teams"])
@@ -40,7 +41,15 @@ async def get_team(
     team_service: TeamService = Depends(get_team_service),
 ) -> TeamResponse:
     """Get team details (requires membership)."""
-    from app.models.enums import Role
-
     await team_service.require_team_role(team_id, user, Role.GUEST)
     return await team_service.get_team(team_id)
+
+
+@router.get("/{team_id}/members", response_model=list[TeamMemberWithUser])
+async def list_team_members(
+    team_id: UUID,
+    user: CurrentUser,
+    team_service: TeamService = Depends(get_team_service),
+) -> list[TeamMemberWithUser]:
+    """List members of a team (for chat recipient pickers, etc.)."""
+    return await team_service.get_members(team_id, user)
