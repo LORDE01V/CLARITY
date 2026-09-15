@@ -65,8 +65,10 @@ def get_task_service() -> TaskService:
 
 
 def get_auth_service() -> AuthService:
-    """Provide AuthService with the default Supabase client."""
-    return AuthService(get_supabase_client())
+    """Provide AuthService with the anon auth client (not the service-role DB client)."""
+    from app.db.supabase import get_supabase_auth_client
+
+    return AuthService(get_supabase_auth_client())
 
 
 def get_github_service() -> GitHubService:

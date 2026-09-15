@@ -16,10 +16,10 @@ from app.services.auth_service import AuthService
 
 
 def get_auth_service() -> AuthService:
-    """Provide AuthService with the default Supabase client."""
-    from app.db.supabase import get_supabase_client
+    """Provide AuthService with the anon auth client (not the service-role DB client)."""
+    from app.db.supabase import get_supabase_auth_client
 
-    return AuthService(get_supabase_client())
+    return AuthService(get_supabase_auth_client())
 
 
 async def get_current_user(

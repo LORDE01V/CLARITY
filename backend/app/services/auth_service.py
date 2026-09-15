@@ -1,18 +1,27 @@
 """
 Authentication service wrapping Supabase Auth.
 
-Validates JWTs issued by Supabase and exposes login/register helpers.
-For tests, token verification can be bypassed via dependency overrides.
+Validates JWTs issued by Supabase (ES256 via JWKS, with HS256 legacy fallback)
+and exposes login/register helpers.
 """
 
 from datetime import datetime, timezone
+from functools import lru_cache
 from uuid import UUID
 
-from jose import JWTError, jwt
+import jwt
+from jwt import PyJWKClient
 
 from app.core.config import Settings, get_settings
 from app.core.exceptions import AuthenticationError
 from app.models.auth import AuthSessionResponse, AuthUser, LoginRequest, RegisterRequest
+
+
+@lru_cache
+def _jwks_client_for(supabase_url: str) -> PyJWKClient:
+    """Cached JWKS client for Supabase Auth signing keys."""
+    base = supabase_url.rstrip("/")
+    return PyJWKClient(f"{base}/auth/v1/.well-known/jwks.json")
 
 
 class AuthService:
@@ -26,24 +35,61 @@ class AuthService:
         """
         Decode and validate a Supabase JWT access token.
 
-        Raises AuthenticationError if the token is invalid or expired.
+        New Supabase projects sign with ES256 (JWKS). Older projects may still
+        use HS256 with the legacy JWT secret.
         """
         try:
-            payload = jwt.decode(
-                token,
-                self._settings.supabase_jwt_secret,
-                algorithms=["HS256"],
-                audience="authenticated",
+            header = jwt.get_unverified_header(token)
+            alg = header.get("alg", "HS256")
+            options = {
+                "require": ["exp", "sub"],
+                # Supabase access tokens always carry aud=authenticated.
+                "verify_aud": True,
+            }
+
+            if alg in {"ES256", "RS256"}:
+                jwks = _jwks_client_for(self._settings.supabase_url)
+                key = jwks.get_signing_key_from_jwt(token).key
+                payload = jwt.decode(
+                    token,
+                    key,
+                    algorithms=[alg],
+                    audience="authenticated",
+                    options=options,
+                )
+            else:
+                secret = self._settings.supabase_jwt_secret
+                if not secret:
+                    raise AuthenticationError("JWT secret not configured")
+                payload = jwt.decode(
+                    token,
+                    secret,
+                    algorithms=["HS256"],
+                    audience="authenticated",
+                    options=options,
+                )
+
+            user_id = UUID(str(payload["sub"]))
+            metadata = payload.get("user_metadata", {}) or {}
+            email = (
+                payload.get("email")
+                or metadata.get("email")
+                or f"{user_id}@users.supabase.local"
             )
-            user_id = UUID(payload["sub"])
-            email = payload.get("email", "")
-            metadata = payload.get("user_metadata", {})
+            full_name = metadata.get("full_name")
+            if isinstance(full_name, str):
+                full_name = full_name or None
+            else:
+                full_name = None
+
             return AuthUser(
                 id=user_id,
                 email=email,
-                full_name=metadata.get("full_name"),
+                full_name=full_name,
             )
-        except (JWTError, KeyError, ValueError) as exc:
+        except AuthenticationError:
+            raise
+        except (jwt.PyJWTError, KeyError, ValueError, TypeError) as exc:
             raise AuthenticationError("Invalid or expired access token") from exc
 
     async def login(self, payload: LoginRequest) -> AuthSessionResponse:
@@ -67,7 +113,7 @@ class AuthService:
             user=AuthUser(
                 id=UUID(user.id),
                 email=user.email,
-                full_name=user.user_metadata.get("full_name"),
+                full_name=(user.user_metadata or {}).get("full_name"),
             ),
         )
 
@@ -82,12 +128,18 @@ class AuthService:
                 }
             )
         except Exception as exc:
-            raise AuthenticationError("Registration failed") from exc
+            detail = str(exc).strip() or "Registration failed"
+            raise AuthenticationError(detail) from exc
 
         session = response.session
         user = response.user
-        if session is None or user is None:
+        if user is None:
             raise AuthenticationError("Registration failed")
+        if session is None:
+            raise AuthenticationError(
+                "Registration created the user but returned no session. "
+                "In Supabase Auth, turn Confirm email OFF for local development."
+            )
 
         return AuthSessionResponse(
             access_token=session.access_token,

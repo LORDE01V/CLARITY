@@ -58,7 +58,8 @@ class SupabaseTeamRepository:
             .maybe_single()
             .execute()
         )
-        if not result.data:
+        # postgrest-py may return None (not an empty response) when no row matches
+        if result is None or not result.data:
             return None
         return TeamResponse(**result.data)
 
@@ -107,7 +108,8 @@ class SupabaseMemberRepository:
             .maybe_single()
             .execute()
         )
-        if not result.data:
+        # postgrest-py may return None (not an empty response) when no row matches
+        if result is None or not result.data:
             return None
         return TeamMemberResponse(**result.data)
 
