@@ -6,6 +6,7 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
+import { peekAccessToken, setAccessToken } from "@/lib/auth/token";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -25,6 +26,13 @@ export const supabase = createClient(
  * Retrieve the current session access token for API calls.
  */
 export async function getAccessToken(): Promise<string | null> {
+  const cached = peekAccessToken();
+  if (cached) return cached;
+
   const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
+  const token = data.session?.access_token ?? null;
+  setAccessToken(token);
+  return token;
 }
+
+export { setAccessToken };

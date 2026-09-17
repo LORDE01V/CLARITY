@@ -24,6 +24,7 @@ import {
   isAuthBypassEnabled,
   setDevLogoutFlag,
 } from "@/lib/auth/bypass";
+import { setAccessToken } from "@/lib/auth/token";
 import { supabase } from "@/lib/supabase";
 
 interface AuthContextValue {
@@ -89,8 +90,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data }) => {
       if (cancelled) return;
       if (data.session) {
+        setAccessToken(data.session.access_token);
         const next = await resolveUserFromSession(data.session);
         if (!cancelled) setUser(next);
+      } else {
+        setAccessToken(null);
       }
       if (!cancelled) setLoading(false);
     });
@@ -101,9 +105,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.setTimeout(() => {
         if (cancelled) return;
         if (!session) {
+          setAccessToken(null);
           setUser(null);
           return;
         }
+        setAccessToken(session.access_token);
         void resolveUserFromSession(session).then((next) => {
           if (!cancelled) setUser(next);
         });
@@ -130,10 +136,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const session = await api.auth.login(payload);
-      await supabase.auth.setSession({
+      setAccessToken(session.access_token);
+      const { error } = await supabase.auth.setSession({
         access_token: session.access_token,
         refresh_token: session.refresh_token,
       });
+      if (error) {
+        setAccessToken(null);
+        throw new Error(error.message || "Failed to establish session");
+      }
       // Normalize id to string in case JSON ever varies; keep UI unblocked.
       setUser({ ...session.user, id: String(session.user.id) });
     },
@@ -154,10 +165,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const session = await api.auth.register(payload);
-      await supabase.auth.setSession({
+      setAccessToken(session.access_token);
+      const { error } = await supabase.auth.setSession({
         access_token: session.access_token,
         refresh_token: session.refresh_token,
       });
+      if (error) {
+        setAccessToken(null);
+        throw new Error(error.message || "Failed to establish session");
+      }
       setUser({ ...session.user, id: String(session.user.id) });
     },
     [bypassMode]
@@ -170,6 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    setAccessToken(null);
     await supabase.auth.signOut();
     setUser(null);
   }, [bypassMode]);
