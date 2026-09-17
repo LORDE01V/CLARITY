@@ -40,7 +40,7 @@ import type {
   TeamMemberWithUser,
 } from "@/types";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL as string;
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
 class ApiError extends Error {
   constructor(
@@ -73,6 +73,13 @@ async function request<T>(
   path: string,
   options: RequestInit & { accessToken?: string | null } = {}
 ): Promise<T> {
+  if (!API_BASE) {
+    throw new ApiError(
+      0,
+      "VITE_API_BASE_URL is not set. Add it in frontend/.env (local) or Cloudflare Pages env, then rebuild."
+    );
+  }
+
   const { accessToken, ...init } = options;
   const token =
     accessToken === undefined ? await getAccessToken() : accessToken;

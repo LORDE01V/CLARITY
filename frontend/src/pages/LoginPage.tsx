@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { useAuth } from "@/components/AuthProvider";
 import { Button } from "@/components/ui/Button";
@@ -12,6 +13,7 @@ export function LoginPage() {
   const nextPath = searchParams.get("next") || "/";
   const [email, setEmail] = useState("jordan@example.com");
   const [password, setPassword] = useState("password123");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -91,15 +93,30 @@ export function LoginPage() {
 
         <label className="flex flex-col gap-1.5 text-[12px] font-medium text-text-body">
           Password
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="clarity-input"
-            required
-            minLength={8}
-            autoComplete="current-password"
-          />
+          <span className="relative block">
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="clarity-input pr-11"
+              required
+              minLength={8}
+              autoComplete="current-password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted-foreground transition-colors hover:text-text-body"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-pressed={showPassword}
+            >
+              {showPassword ? (
+                <EyeOff size={18} strokeWidth={1.75} />
+              ) : (
+                <Eye size={18} strokeWidth={1.75} />
+              )}
+            </button>
+          </span>
         </label>
 
         {error && <p className="clarity-error">{error}</p>}

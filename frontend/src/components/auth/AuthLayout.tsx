@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
 import { AppBackground } from "@/components/layout/AppBackground";
-import { BrandLogo } from "@/components/ui/BrandLogo";
 
 interface AuthLayoutProps {
   children: ReactNode;
@@ -16,12 +14,6 @@ export function AuthLayout({ children, title, subtitle, footer }: AuthLayoutProp
       <AppBackground />
 
       <div className="relative z-10 w-full max-w-md">
-        <div className="mb-8 flex justify-center">
-          <Link to="/login">
-            <BrandLogo size="md" />
-          </Link>
-        </div>
-
         <div className="clarity-panel p-8">
           <div className="mb-6 text-center">
             <h1 className="text-xl font-semibold tracking-[-0.03em] text-card-foreground">

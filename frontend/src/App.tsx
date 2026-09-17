@@ -8,6 +8,7 @@ import { DashboardPage } from "@/pages/DashboardPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { OnboardingPage } from "@/pages/OnboardingPage";
 import { RegisterPage } from "@/pages/RegisterPage";
+import { SplashPage } from "@/pages/SplashPage";
 
 export function App() {
   return (
@@ -15,6 +16,7 @@ export function App() {
       <BrowserRouter>
         <WorkspaceProvider>
           <Routes>
+            <Route path="/welcome" element={<SplashPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/invites/:token" element={<AcceptInvitePage />} />
@@ -24,7 +26,7 @@ export function App() {
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<DashboardPage />} />
             </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/welcome" replace />} />
           </Routes>
         </WorkspaceProvider>
       </BrowserRouter>
