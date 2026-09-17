@@ -42,9 +42,13 @@ class Settings(BaseSettings):
     # Public frontend origin used when building post-install redirect hints
     frontend_origin: str = "http://localhost:5173"
 
-    # OpenAI (meeting recaps) — same key locally and on deploy
+    # OpenAI (meeting recaps + Whisper) — same key locally and on deploy
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
+    openai_whisper_model: str = "whisper-1"
+
+    # Jitsi base (public meet.jit.si works local + deploy; override for self-host)
+    jitsi_base_url: str = "https://meet.jit.si"
 
     @property
     def cors_origin_list(self) -> list[str]:

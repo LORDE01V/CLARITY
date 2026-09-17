@@ -20,7 +20,7 @@ from app.core.exceptions import (
     PermissionDeniedError,
     ValidationError,
 )
-from app.routers import auth, chat, github, invites, orgs, recaps, tasks, teams
+from app.routers import auth, chat, github, invites, meetings, orgs, recaps, tasks, teams
 
 
 @asynccontextmanager
@@ -66,6 +66,7 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(invites.router, prefix="/api/v1")
     app.include_router(tasks.router, prefix="/api/v1")
     app.include_router(chat.router, prefix="/api/v1")
+    app.include_router(meetings.router, prefix="/api/v1")
     app.include_router(recaps.router, prefix="/api/v1")
     app.include_router(github.router, prefix="/api/v1")
 

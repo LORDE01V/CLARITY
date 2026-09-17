@@ -23,7 +23,10 @@ from app.services.org_service import OrganizationService
 from app.services.recap_service import RecapService
 from app.services.task_service import TaskService
 from app.services.team_service import TeamService
+from app.db.repositories.meeting_repository import SupabaseMeetingRepository
 from app.db.repositories.recap_repository import SupabaseRecapRepository
+from app.services.meeting_service import MeetingService
+from app.services.openai_whisper import OpenAIWhisperClient
 
 
 def get_settings_dep():
@@ -123,4 +126,20 @@ def get_recap_service() -> RecapService:
             api_key=settings.openai_api_key,
             model=settings.openai_model,
         ),
+    )
+
+
+def get_meeting_service() -> MeetingService:
+    """Provide MeetingService with Jitsi URL builder + Whisper."""
+    settings = get_settings()
+    client = get_supabase_client()
+    return MeetingService(
+        meeting_repo=SupabaseMeetingRepository(client),
+        team_service=get_team_service(),
+        whisper=OpenAIWhisperClient(
+            api_key=settings.openai_api_key,
+            model=settings.openai_whisper_model,
+        ),
+        recap_service=get_recap_service(),
+        jitsi_base_url=settings.jitsi_base_url,
     )

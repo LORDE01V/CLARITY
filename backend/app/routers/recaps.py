@@ -1,11 +1,11 @@
-"""Team meeting recap routes (OpenAI GPT-4o-mini draft → review → chat)."""
+"""Team meeting recap routes (OpenAI draft → review → chat)."""
 
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
 from app.dependencies.auth import CurrentUser
-from app.dependencies.providers import get_recap_service, get_settings_dep
+from app.dependencies.providers import get_recap_service
 from app.dependencies.rbac import require_team_role
 from app.models.enums import Role
 from app.models.recap import (
@@ -14,23 +14,9 @@ from app.models.recap import (
     RecapSendRequest,
     RecapUpdateRequest,
 )
-from app.core.config import Settings
 from app.services.recap_service import RecapService
 
 router = APIRouter(tags=["recaps"])
-
-
-@router.get("/meetings/health")
-async def meetings_health(
-    settings: Settings = Depends(get_settings_dep),
-) -> dict[str, str | bool]:
-    """Deploy-safe health: reports whether OpenAI recap generation is configured."""
-    configured = bool(settings.openai_api_key.strip())
-    return {
-        "status": "ok" if configured else "openai_not_configured",
-        "openai_configured": configured,
-        "model": settings.openai_model,
-    }
 
 
 @router.post(
@@ -45,7 +31,7 @@ async def generate_recap(
     _role: Role = Depends(require_team_role(Role.MEMBER)),
     recap_service: RecapService = Depends(get_recap_service),
 ) -> RecapResponse:
-    """Generate an AI draft recap from a transcript or notes (GPT-4o-mini)."""
+    """Generate an AI draft recap from a transcript or notes."""
     return await recap_service.generate(team_id, payload, user)
 
 
