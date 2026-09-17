@@ -80,7 +80,7 @@ export function RecentRecaps({
       ) : recaps.length === 0 ? (
         <div className="flex flex-col gap-3 px-5 py-6">
           <p className="text-[12px] leading-5 text-muted-light">
-            Paste a transcript or notes, draft with GPT-4o, review, then send to
+            Paste a transcript or notes, draft with GPT-4o-mini, review, then send to
             #general.
           </p>
           <Button type="button" variant="primary" size="sm" className="w-fit" onClick={onCreate}>
@@ -193,7 +193,7 @@ export function NewRecapForm({
           variant="primary"
           disabled={generating || title.trim().length < 1 || transcript.trim().length < 20}
         >
-          {generating ? "Drafting with GPT-4o…" : "Generate AI draft"}
+          {generating ? "Drafting with GPT-4o-mini…" : "Generate AI draft"}
         </Button>
       </div>
     </form>
