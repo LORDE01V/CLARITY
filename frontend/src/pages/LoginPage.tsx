@@ -4,7 +4,6 @@ import { Eye, EyeOff } from "lucide-react";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { useAuth } from "@/components/AuthProvider";
 import { Button } from "@/components/ui/Button";
-import { hasApiBaseUrl, hasSupabaseEnv, isAuthBypassFlagFalse } from "@/lib/auth/config";
 
 export function LoginPage() {
   const { login, enterDemo, user, isBypassMode } = useAuth();
@@ -16,11 +15,6 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  const envGap =
-    isAuthBypassFlagFalse() && (!hasSupabaseEnv() || !hasApiBaseUrl())
-      ? "VITE_AUTH_BYPASS is false, but Supabase and/or VITE_API_BASE_URL are missing. Copy frontend/.env.example to frontend/.env and fill real values."
-      : null;
 
   useEffect(() => {
     if (user) {
@@ -68,16 +62,6 @@ export function LoginPage() {
         </>
       }
     >
-      {isBypassMode && (
-        <div className="clarity-info-banner mb-5">
-          Demo mode is on. No database or backend is required. Use any credentials
-          below, or skip straight into the app. Set VITE_AUTH_BYPASS=false for real
-          auth.
-        </div>
-      )}
-
-      {envGap && <div className="clarity-info-banner mb-5">{envGap}</div>}
-
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1.5 text-[12px] font-medium text-text-body">
           Email

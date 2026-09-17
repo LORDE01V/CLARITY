@@ -69,13 +69,6 @@ export function OnboardingPage() {
         </span>
       }
     >
-      {isBypassMode && (
-        <div className="clarity-info-banner mb-5">
-          Demo mode is on. Organization creation will stay local until you set
-          VITE_AUTH_BYPASS=false.
-        </div>
-      )}
-
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1.5 text-[12px] font-medium text-text-body">
           Organization name
