@@ -18,9 +18,17 @@ from app.services.auth_service import AuthService
 from app.services.chat_service import ChatService
 from app.services.github_service import GitHubService
 from app.services.invite_service import InviteService
+from app.services.openai_recap import OpenAIRecapClient
 from app.services.org_service import OrganizationService
+from app.services.recap_service import RecapService
 from app.services.task_service import TaskService
 from app.services.team_service import TeamService
+from app.db.repositories.recap_repository import SupabaseRecapRepository
+
+
+def get_settings_dep():
+    """FastAPI-friendly settings dependency."""
+    return get_settings()
 
 
 def get_org_service() -> OrganizationService:
@@ -100,4 +108,19 @@ def get_github_service() -> GitHubService:
         event_repo=get_shared_github_event_store(),
         installation_repo=get_shared_github_installation_store(),
         task_repo=None,
+    )
+
+
+def get_recap_service() -> RecapService:
+    """Provide RecapService with Supabase + OpenAI (env-configured)."""
+    settings = get_settings()
+    client = get_supabase_client()
+    return RecapService(
+        recap_repo=SupabaseRecapRepository(client),
+        team_service=get_team_service(),
+        chat_service=get_chat_service(),
+        openai=OpenAIRecapClient(
+            api_key=settings.openai_api_key,
+            model=settings.openai_model,
+        ),
     )

@@ -42,10 +42,18 @@ class Settings(BaseSettings):
     # Public frontend origin used when building post-install redirect hints
     frontend_origin: str = "http://localhost:5173"
 
+    # OpenAI (meeting recaps) — same key locally and on deploy
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o"
+
     @property
     def cors_origin_list(self) -> list[str]:
         """Parse comma-separated CORS origins into a list."""
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def openai_configured(self) -> bool:
+        return bool(self.openai_api_key.strip())
 
     @property
     def github_app_configured(self) -> bool:

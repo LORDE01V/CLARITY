@@ -1,11 +1,4 @@
-"""Video meeting routes (placeholder for future module)."""
+"""Video meeting routes — health only; recaps live under /teams/{id}/recaps."""
 
-from fastapi import APIRouter
-
-router = APIRouter(prefix="/meetings", tags=["meetings"])
-
-
-@router.get("/health")
-async def meetings_health() -> dict[str, str]:
-    """Placeholder health check for the meetings module."""
-    return {"status": "not_implemented"}
+# Kept so older imports/docs referencing meetings still resolve.
+from app.routers.recaps import router  # noqa: F401
