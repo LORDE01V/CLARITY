@@ -177,6 +177,32 @@ Blueprint file: [`render.yaml`](render.yaml) (free web service).
 
 Free tier spins down after idle; first request can take ~30–60s.
 
+## Deploy (Cloudflare Pages or Vercel — frontend)
+
+Config in repo: `frontend/public/_redirects` (Cloudflare SPA), `frontend/vercel.json` (Vercel SPA).
+
+1. Push the **`Frontend`** branch.
+2. **Cloudflare Pages** (recommended in this README) or **Vercel** → import `LORDE01V/CLARITY`.
+3. Settings:
+   - **Branch:** `Frontend`
+   - **Root directory:** `frontend`
+   - **Build command:** `npm run build`
+   - **Output directory:** `dist`
+4. Environment variables (build-time — must match production):
+
+| Variable | Value |
+|----------|--------|
+| `VITE_SUPABASE_URL` | same Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | anon public key |
+| `VITE_API_BASE_URL` | `https://YOUR_SERVICE.onrender.com/api/v1` |
+| `VITE_AUTH_BYPASS` | `false` |
+
+5. Deploy → open the Pages/Vercel URL.
+6. On **Render**, update:
+   - `CORS_ORIGINS` to include `https://YOUR_FRONTEND_URL`
+   - `FRONTEND_ORIGIN` to `https://YOUR_FRONTEND_URL`
+7. In **Supabase** → Authentication → URL configuration: add the frontend URL to Site URL / Redirect URLs.
+
 ## License
 
 [MIT](LICENSE)
