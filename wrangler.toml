@@ -1,0 +1,4 @@
+# Cloudflare Pages — build from repo root (Frontend branch)
+name = "clarity"
+compatibility_date = "2024-11-01"
+pages_build_output_dir = "frontend/dist"
