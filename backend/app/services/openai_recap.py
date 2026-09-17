@@ -25,12 +25,12 @@ class OpenAIRecapClient:
     def __init__(
         self,
         api_key: str,
-        model: str = "gpt-4o",
+        model: str = "gpt-4o-mini",
         timeout: float = 90.0,
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
         self._api_key = api_key.strip()
-        self._model = model.strip() or "gpt-4o"
+        self._model = model.strip() or "gpt-4o-mini"
         self._timeout = timeout
         self._http = http_client
 

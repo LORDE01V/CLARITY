@@ -19,7 +19,7 @@ class RecapActionItem(BaseModel):
 
 
 class RecapGenerateRequest(BaseModel):
-    """Create a recap by sending a transcript (or notes) to GPT-4o."""
+    """Create a recap by sending a transcript (or notes) to GPT-4o-mini."""
 
     title: str = Field(min_length=1, max_length=200)
     transcript: str = Field(min_length=20, max_length=100_000)

@@ -44,7 +44,7 @@ class Settings(BaseSettings):
 
     # OpenAI (meeting recaps) — same key locally and on deploy
     openai_api_key: str = ""
-    openai_model: str = "gpt-4o"
+    openai_model: str = "gpt-4o-mini"
 
     @property
     def cors_origin_list(self) -> list[str]:

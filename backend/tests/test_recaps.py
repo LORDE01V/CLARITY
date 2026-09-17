@@ -19,7 +19,7 @@ from app.services.recap_service import RecapService
 
 class FakeOpenAI(OpenAIRecapClient):
     def __init__(self) -> None:
-        super().__init__(api_key="test-key", model="gpt-4o")
+        super().__init__(api_key="test-key", model="gpt-4o-mini")
         self.calls = 0
 
     async def generate(self, *, title: str, transcript: str):

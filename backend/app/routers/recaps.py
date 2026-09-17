@@ -1,4 +1,4 @@
-"""Team meeting recap routes (OpenAI GPT-4o draft → review → chat)."""
+"""Team meeting recap routes (OpenAI GPT-4o-mini draft → review → chat)."""
 
 from uuid import UUID
 
@@ -45,7 +45,7 @@ async def generate_recap(
     _role: Role = Depends(require_team_role(Role.MEMBER)),
     recap_service: RecapService = Depends(get_recap_service),
 ) -> RecapResponse:
-    """Generate an AI draft recap from a transcript or notes (GPT-4o)."""
+    """Generate an AI draft recap from a transcript or notes (GPT-4o-mini)."""
     return await recap_service.generate(team_id, payload, user)
 
 
