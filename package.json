@@ -2,6 +2,7 @@
   "name": "clarity",
   "private": true,
   "scripts": {
-    "build": "npm ci --prefix frontend && npm run build --prefix frontend"
+    "build": "npm ci --prefix frontend && npm run build --prefix frontend",
+    "pages:deploy": "npx wrangler pages deploy frontend/dist --project-name=clarity"
   }
 }
