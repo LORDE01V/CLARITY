@@ -22,6 +22,7 @@ export type {
   RecapStatus,
   RecapUpdateRequest,
 } from "./recap";
+export type { MeetingCreateRequest, MeetingStatus, TeamMeeting } from "./meeting";
 export type { Role } from "./roles";
 export { hasMinimumRole, ROLE_LEVELS } from "./roles";
 export type {

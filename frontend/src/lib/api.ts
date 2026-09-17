@@ -21,6 +21,7 @@ import type {
   InviteAcceptResponse,
   InviteCreate,
   LoginRequest,
+  MeetingCreateRequest,
   MeetingRecap,
   Organization,
   OrganizationCreate,
@@ -35,6 +36,7 @@ import type {
   TaskUpdate,
   Team,
   TeamCreate,
+  TeamMeeting,
   TeamMemberWithUser,
 } from "@/types";
 
@@ -302,6 +304,57 @@ export const api = {
       request<MeetingRecap>(`/teams/${teamId}/recaps/${recapId}/send`, {
         method: "POST",
         body: JSON.stringify(payload),
+      }),
+  },
+
+  meetings: {
+    list: (teamId: string) =>
+      request<TeamMeeting[]>(`/teams/${teamId}/meetings`),
+
+    create: (teamId: string, payload: MeetingCreateRequest) =>
+      request<TeamMeeting>(`/teams/${teamId}/meetings`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+
+    get: (teamId: string, meetingId: string) =>
+      request<TeamMeeting>(`/teams/${teamId}/meetings/${meetingId}`),
+
+    end: (teamId: string, meetingId: string) =>
+      request<TeamMeeting>(`/teams/${teamId}/meetings/${meetingId}/end`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      }),
+
+    transcribe: async (teamId: string, meetingId: string, file: File) => {
+      const token = await getAccessToken();
+      const form = new FormData();
+      form.append("file", file);
+      const headers: Record<string, string> = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+      let response: Response;
+      try {
+        response = await fetch(
+          `${API_BASE}/teams/${teamId}/meetings/${meetingId}/transcribe`,
+          { method: "POST", headers, body: form }
+        );
+      } catch {
+        throw new ApiError(
+          0,
+          "Cannot reach the API. Check that the backend is running and VITE_API_BASE_URL is correct."
+        );
+      }
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({ detail: "Request failed" }));
+        throw new ApiError(response.status, formatErrorDetail(body.detail));
+      }
+      return response.json() as Promise<{ transcript: string }>;
+    },
+
+    recap: (teamId: string, meetingId: string, transcript: string) =>
+      request<MeetingRecap>(`/teams/${teamId}/meetings/${meetingId}/recap`, {
+        method: "POST",
+        body: JSON.stringify({ transcript }),
       }),
   },
 };

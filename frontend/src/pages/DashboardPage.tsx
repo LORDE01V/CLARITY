@@ -12,9 +12,14 @@ import { RecapReviewModal } from "@/components/dashboard/RecapReviewModal";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { TeamChat } from "@/components/dashboard/TeamChat";
 import { UpcomingMeetings } from "@/components/dashboard/UpcomingMeetings";
+import {
+  MeetingRoom,
+  StartMeetingForm,
+} from "@/components/meetings/MeetingRoom";
 import { TasksBoard } from "@/components/tasks/TasksBoard";
 import { TeamWorkspacePanel } from "@/components/workspace/TeamWorkspacePanel";
 import { useTeamChat } from "@/hooks/useTeamChat";
+import { useTeamMeetings } from "@/hooks/useTeamMeetings";
 import { useTeamRecaps } from "@/hooks/useTeamRecaps";
 import { useTeamTasks } from "@/hooks/useTeamTasks";
 import type { MeetingRecap, TaskStatus } from "@/types";
@@ -25,6 +30,7 @@ export function DashboardPage() {
   const [activeNav, setActiveNav] = useState("Dashboard");
   const [recapMode, setRecapMode] = useState<"create" | "review" | null>(null);
   const [activeRecap, setActiveRecap] = useState<MeetingRecap | null>(null);
+  const [startMeetingOpen, setStartMeetingOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const {
     tasks,
@@ -41,6 +47,7 @@ export function DashboardPage() {
   } = useTeamTasks();
   const chat = useTeamChat();
   const recaps = useTeamRecaps();
+  const meetings = useTeamMeetings();
 
   if (!user) {
     return null;
@@ -70,10 +77,7 @@ export function DashboardPage() {
             user={user}
             orgName={org?.name}
             teamName={team?.name}
-            onNewMeeting={() => {
-              setActiveRecap(null);
-              setRecapMode("create");
-            }}
+            onNewMeeting={() => setStartMeetingOpen(true)}
           />
 
           {showTeam ? (
@@ -171,7 +175,13 @@ export function DashboardPage() {
                 </div>
 
                 <div className="flex flex-col gap-6">
-                  <UpcomingMeetings />
+                  <UpcomingMeetings
+                    meetings={meetings.meetings}
+                    loading={meetings.loading}
+                    hasTeam={meetings.hasTeam}
+                    onCreate={() => setStartMeetingOpen(true)}
+                    onJoin={(meeting) => meetings.setActiveMeeting(meeting)}
+                  />
                   <TeamChat onOpenChat={() => setActiveNav("Chat")} />
                 </div>
               </div>
@@ -179,6 +189,42 @@ export function DashboardPage() {
           )}
         </div>
       </main>
+
+      {startMeetingOpen && !meetings.activeMeeting && (
+        <StartMeetingForm
+          creating={meetings.creating}
+          error={meetings.error}
+          onCancel={() => setStartMeetingOpen(false)}
+          onStart={async (title) => {
+            await meetings.createMeeting(title);
+            setStartMeetingOpen(false);
+          }}
+        />
+      )}
+
+      {meetings.activeMeeting && (
+        <MeetingRoom
+          meeting={meetings.activeMeeting}
+          transcribing={meetings.transcribing}
+          error={meetings.error}
+          onClose={() => meetings.setActiveMeeting(null)}
+          onEnd={async () => {
+            await meetings.endMeeting(meetings.activeMeeting!.id);
+          }}
+          onTranscribe={(file) =>
+            meetings.transcribe(meetings.activeMeeting!.id, file)
+          }
+          onCreateRecap={(transcript) =>
+            meetings.recapFromMeeting(meetings.activeMeeting!.id, transcript)
+          }
+          onRecapReady={(recap) => {
+            void recaps.refresh();
+            setActiveRecap(recap);
+            setRecapMode("review");
+            meetings.setActiveMeeting(null);
+          }}
+        />
+      )}
 
       {recapMode && (
         <RecapReviewModal
