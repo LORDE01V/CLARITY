@@ -2,115 +2,158 @@
   <img src="docs/logo.png" alt="CLARITY logo" width="220">
 </p>
 
-# CLARITY (working title)
+# CLARITY
 
-**A unified corporate workspace** combining task tracking, real-time chat, video meetings, and GitHub integration in one place — built to eliminate the "meeting about the meeting" problem for cross-functional teams.
+**A unified corporate workspace** for tasks, team chat, embedded video meetings, GitHub activity, and AI meeting recaps — built so decisions from a call become a reviewed summary the team can act on without another meeting.
 
-Built as a portfolio project by [Kgothatso Mokgashi](https://github.com/LORDE01V) to demonstrate production-grade full-stack + AI system design, using a fully free-tier infrastructure stack.
+Portfolio full-stack project by [Kgothatso Mokgashi](https://github.com/LORDE01V).
 
-## Why This Exists
+## Why it exists
 
-Corporate teams juggle Jira for tasks, Zoom/Teams for meetings, Slack for chat, and GitHub for code — with no single source of truth linking them. When a client call happens, whoever attended has to manually relay decisions to the rest of the team, often via another meeting. This project automates that hand-off: **record → transcribe → summarize → review → send**, with full attribution for accountability.
+Teams bounce between Jira, Slack/Teams, Zoom/Meet, and GitHub. Clarity keeps day-to-day work in one workspace and closes the loop after meetings:
 
-## Core Features
+**meet → transcript (Whisper) → AI draft recap → human review → send to team chat**
 
-- **Org hierarchy & invites** — CEO/PM-level roles can create teams, invite members, and scope permissions per group
-- **Task tracker** — Kanban-style, auto-linked to GitHub PRs/issues
-- **Real-time chat** — team and group channels, mentions, presence
-- **Video meetings** — WebRTC-based calls with recording + live transcription
-- **AI meeting recaps** — auto-transcribed calls generate a draft summary + action items, editable before sending to email or in-app chat, with full edit-attribution logged
-- **GitHub sync** — GitHub App + webhooks link commits/PRs/issues directly to tasks
+## What’s built
 
-## Tech Stack (100% Free Tier)
+| Area | What you get |
+|------|----------------|
+| **Auth & orgs** | Supabase Auth, org create, default General team, invites + RBAC (Owner / PM / Member / Guest) |
+| **Tasks** | Kanban board (create, move, assign, due dates) against live Supabase |
+| **Chat** | Team channels (`#general`), **1:1 DMs**, and **group** chats — membership-scoped |
+| **GitHub** | GitHub App connect, webhook ingest, activity feed (link work with `CLR-###` in PR/issue titles) |
+| **Meetings** | **New meeting** auto-creates a unique [Jitsi](https://meet.jit.si) room and embeds it in the dashboard |
+| **AI recaps** | Paste notes or upload audio → **OpenAI Whisper** transcript → **GPT-4o-mini** summary + action items → edit → post to `#general` |
 
-| Layer | Tool |
-|---|---|
-| Backend | FastAPI (Python) on Render |
-| Database / Auth / Realtime | Supabase (Postgres) |
-| Frontend | React + TypeScript on Cloudflare Pages |
-| Video | Jitsi Meet (embedded / self-hosted on Oracle Cloud Free Tier) |
-| Transcription | Whisper (self-hosted via Hugging Face Spaces) |
-| Summarization | Open-weight LLMs via OpenRouter / HF Inference (free tier) |
-| GitHub integration | GitHub App + Webhooks |
-| CI/CD | GitHub Actions |
+## Tech stack
 
-> This project is deliberately architected for **zero infrastructure cost**, using open-weight models and free-tier managed services in place of paid APIs — a demonstration of cost-conscious system design, not just feature-building.
+| Layer | Choice |
+|-------|--------|
+| Frontend | React + TypeScript + Vite + Tailwind |
+| Backend | FastAPI (Python) |
+| DB / Auth | Supabase (Postgres + Auth) |
+| Video | Public Jitsi Meet (`meet.jit.si`) — no Jitsi account required |
+| AI | OpenAI (`whisper-1` + `gpt-4o-mini`) |
+| Code sync | GitHub App + webhooks |
+| CI | GitHub Actions |
+
+Deploy targets (when you’re ready): API on Render (or similar), frontend on Cloudflare Pages / Vercel — same env vars as local.
 
 ## Architecture (high level)
 
 ```
-Client (React/TS) ──> FastAPI backend ──> Supabase (Postgres/Auth/Realtime)
-                              │
-                              ├──> Jitsi (video) ──> Whisper (transcription)
-                              │                           │
-                              │                           v
-                              │                  LLM summarization (OpenRouter/HF)
-                              │                           │
-                              │                           v
-                              │                  Draft recap ──> review/edit ──> send (email/chat)
-                              │
-                              └──> GitHub App/Webhooks ──> Task auto-linking
+React (Vite) ──JWT──> FastAPI ──service_role──> Supabase Postgres
+                         │
+                         ├── Jitsi room URLs (embed in UI)
+                         ├── OpenAI Whisper (audio → transcript)
+                         ├── OpenAI chat (transcript → recap draft)
+                         └── GitHub App (webhooks → activity / task links)
 ```
 
-## Roles & Permissions
+## Roles
 
-- **Owner (CEO)** — org-wide access, creates top-level teams
-- **Project Manager** — creates groups, invites members, assigns tasks
-- **Member** — scoped to invited teams/groups only
-- **Guest (client)** — read-only access to specific shared threads
+- **Owner** — org-wide; creates teams  
+- **Project Manager** — invites, assigns, manages team work  
+- **Member** — tasks, chat, meetings, recaps  
+- **Guest** — read-scoped access where granted  
 
-## Status
+## Branches
 
-🚧 In active development. Build order: Auth/RBAC → Tasks → Chat → Meetings → GitHub sync → AI recap pipeline → tests/CI throughout.
+| Branch | Contents |
+|--------|----------|
+| `Backend` | FastAPI app, migrations, tests |
+| `Frontend` | React app |
+| `main` | Merge when you’ve smoke-tested and approve |
 
-## Local Setup
+## Local setup
+
+### 1. Backend
 
 ```bash
-# Backend
 cd backend
 python -m venv venv
 # Windows: venv\Scripts\activate
 # macOS/Linux: source venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+copy .env.example .env   # or: cp .env.example .env
+```
 
-# Frontend
+Fill `backend/.env` (never commit it):
+
+| Variable | Purpose |
+|----------|---------|
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET` | Auth + DB |
+| `CORS_ORIGINS` | Include `http://127.0.0.1:5173` and `http://localhost:5173` |
+| `OPENAI_API_KEY` | Whisper + recaps |
+| `OPENAI_MODEL` | Default `gpt-4o-mini` |
+| `OPENAI_WHISPER_MODEL` | Default `whisper-1` |
+| `JITSI_BASE_URL` | Default `https://meet.jit.si` |
+| `GITHUB_*` | App id, slug, webhook secret, private key path (for Connect GitHub) |
+| `FRONTEND_ORIGIN` | e.g. `http://localhost:5173` |
+
+```bash
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
+```
+
+### 2. Frontend
+
+```bash
 cd frontend
 npm install
+copy .env.example .env   # or: cp .env.example .env
+```
+
+| Variable | Example |
+|----------|---------|
+| `VITE_SUPABASE_URL` | same project URL |
+| `VITE_SUPABASE_ANON_KEY` | anon key |
+| `VITE_API_BASE_URL` | `http://127.0.0.1:8001/api/v1` |
+| `VITE_AUTH_BYPASS` | `false` for live auth |
+
+```bash
 npm run dev
 ```
 
-Environment variables: copy `backend/.env.example` → `backend/.env` and
-`frontend/.env.example` → `frontend/.env`. Do not commit `.env` files or secrets.
+Open `http://127.0.0.1:5173`.
 
-### Go live locally (real Supabase)
+### 3. Supabase migrations
 
-For register/login, orgs, invites, and tasks against a live project:
+In the Supabase **SQL Editor**, run in order:
 
-1. Paste Supabase **Project URL**, **anon**, **service_role**, and **JWT Secret**
-   into `backend/.env` (and URL + anon into `frontend/.env`) from
-   [Project Settings → API](https://supabase.com/dashboard).
-2. Set `VITE_AUTH_BYPASS=false` and `VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1`.
-3. Run SQL migrations `001` → `003` in the Supabase SQL Editor
-   (`backend/supabase/migrations/`).
-4. Restart uvicorn and `npm run dev`.
+1. `001_initial_schema.sql`  
+2. `002_tasks.sql`  
+3. `003_task_due_date.sql`  
+4. `004_chat.sql`  
+5. `005_chat_dms_groups.sql`  
+6. `006_meeting_recaps.sql`  
+7. `007_meetings.sql`  
 
-Full checklist: [docs/go-live-locally.md](docs/go-live-locally.md).
+Turn **Confirm email** off under Auth settings if you want local register → session without mailbox.
 
-Leave `VITE_AUTH_BYPASS` unset/true only to explore the UI without Supabase.
+### 4. GitHub webhooks (local)
 
-### GitHub App (local webhooks)
-
-Fill `GITHUB_*` in `backend/.env` (see `.env.example`), including
-`GITHUB_APP_SLUG` for **Connect GitHub**. Save the App private key as a `.pem`
-file and set `GITHUB_PRIVATE_KEY_PATH`. Forward webhooks with:
+Point the App webhook at a [Smee](https://smee.io) channel, then:
 
 ```bash
-npx smee -u https://smee.io/YOUR_CHANNEL -t http://127.0.0.1:8000/api/v1/github/webhooks
+npx smee-client -u https://smee.io/YOUR_CHANNEL -t http://127.0.0.1:8001/api/v1/github/webhooks
 ```
 
-Details: [docs/github-app.md](docs/github-app.md).
+On deploy, set the webhook URL to your **public** API (`…/api/v1/github/webhooks`) instead of Smee.
+
+## Demo path (smoke)
+
+1. Register / login → create organization  
+2. **Tasks** — create a card and move columns  
+3. **Code** — Connect GitHub (optional)  
+4. **Chat** — `#general`, DM, or group  
+5. **New meeting** — join embedded Jitsi → upload short audio or paste notes → AI recap → send to chat  
+
+## Honest limits (portfolio)
+
+- Public Jitsi does **not** auto-push recordings into Clarity; upload/paste → Whisper is intentional.  
+- Chat uses **polling** (not websockets) for new messages.  
+- AI uses **your** OpenAI key (not free HF inference).  
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+[MIT](LICENSE)
