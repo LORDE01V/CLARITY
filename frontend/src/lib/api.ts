@@ -21,8 +21,12 @@ import type {
   InviteAcceptResponse,
   InviteCreate,
   LoginRequest,
+  MeetingRecap,
   Organization,
   OrganizationCreate,
+  RecapGenerateRequest,
+  RecapSendRequest,
+  RecapUpdateRequest,
   RegisterRequest,
   Task,
   TaskCreate,
@@ -273,6 +277,32 @@ export const api = {
         `/github/connect${query ? `?${query}` : ""}`
       );
     },
+  },
+
+  recaps: {
+    list: (teamId: string) =>
+      request<MeetingRecap[]>(`/teams/${teamId}/recaps`),
+
+    get: (teamId: string, recapId: string) =>
+      request<MeetingRecap>(`/teams/${teamId}/recaps/${recapId}`),
+
+    generate: (teamId: string, payload: RecapGenerateRequest) =>
+      request<MeetingRecap>(`/teams/${teamId}/recaps/generate`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+
+    update: (teamId: string, recapId: string, payload: RecapUpdateRequest) =>
+      request<MeetingRecap>(`/teams/${teamId}/recaps/${recapId}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      }),
+
+    send: (teamId: string, recapId: string, payload: RecapSendRequest = {}) =>
+      request<MeetingRecap>(`/teams/${teamId}/recaps/${recapId}/send`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
   },
 };
 

@@ -15,14 +15,16 @@ import { UpcomingMeetings } from "@/components/dashboard/UpcomingMeetings";
 import { TasksBoard } from "@/components/tasks/TasksBoard";
 import { TeamWorkspacePanel } from "@/components/workspace/TeamWorkspacePanel";
 import { useTeamChat } from "@/hooks/useTeamChat";
+import { useTeamRecaps } from "@/hooks/useTeamRecaps";
 import { useTeamTasks } from "@/hooks/useTeamTasks";
-import type { TaskStatus } from "@/types";
+import type { MeetingRecap, TaskStatus } from "@/types";
 
 export function DashboardPage() {
   const { user, logout } = useAuth();
   const { org, team } = useWorkspace();
   const [activeNav, setActiveNav] = useState("Dashboard");
-  const [modalOpen, setModalOpen] = useState(false);
+  const [recapMode, setRecapMode] = useState<"create" | "review" | null>(null);
+  const [activeRecap, setActiveRecap] = useState<MeetingRecap | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const {
     tasks,
@@ -38,6 +40,7 @@ export function DashboardPage() {
     clearError,
   } = useTeamTasks();
   const chat = useTeamChat();
+  const recaps = useTeamRecaps();
 
   if (!user) {
     return null;
@@ -67,7 +70,10 @@ export function DashboardPage() {
             user={user}
             orgName={org?.name}
             teamName={team?.name}
-            onNewMeeting={() => setModalOpen(true)}
+            onNewMeeting={() => {
+              setActiveRecap(null);
+              setRecapMode("create");
+            }}
           />
 
           {showTeam ? (
@@ -146,7 +152,21 @@ export function DashboardPage() {
 
               <div className="grid items-start gap-6 xl:grid-cols-[1.16fr_0.84fr]">
                 <div className="flex flex-col gap-6">
-                  <RecentRecaps onOpenRecap={() => setModalOpen(true)} />
+                  <RecentRecaps
+                    recaps={recaps.recaps}
+                    loading={recaps.loading}
+                    error={recaps.error}
+                    hasTeam={recaps.hasTeam}
+                    onClearError={recaps.clearError}
+                    onCreate={() => {
+                      setActiveRecap(null);
+                      setRecapMode("create");
+                    }}
+                    onOpenRecap={(recap) => {
+                      setActiveRecap(recap);
+                      setRecapMode("review");
+                    }}
+                  />
                   <GitHubActivity showConnect />
                 </div>
 
@@ -160,7 +180,36 @@ export function DashboardPage() {
         </div>
       </main>
 
-      {modalOpen && <RecapReviewModal onClose={() => setModalOpen(false)} />}
+      {recapMode && (
+        <RecapReviewModal
+          mode={recapMode}
+          recap={activeRecap}
+          generating={recaps.generating}
+          error={recaps.error}
+          onClose={() => {
+            setRecapMode(null);
+            setActiveRecap(null);
+          }}
+          onGenerate={async (input) => {
+            const created = await recaps.generate(input);
+            setActiveRecap(created);
+            setRecapMode("review");
+            return created;
+          }}
+          onSave={async (input) => {
+            if (!activeRecap) throw new Error("No recap selected");
+            const next = await recaps.update(activeRecap.id, input);
+            setActiveRecap(next);
+            return next;
+          }}
+          onSend={async () => {
+            if (!activeRecap) throw new Error("No recap selected");
+            const next = await recaps.send(activeRecap.id);
+            setActiveRecap(next);
+            return next;
+          }}
+        />
+      )}
     </div>
   );
 }
