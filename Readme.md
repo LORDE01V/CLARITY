@@ -154,6 +154,29 @@ On deploy, set the webhook URL to your **public** API (`…/api/v1/github/webhoo
 - Chat uses **polling** (not websockets) for new messages.  
 - AI uses **your** OpenAI key (not free HF inference).  
 
+## Deploy (Render — API)
+
+Blueprint file: [`render.yaml`](render.yaml) (free web service).
+
+1. Push the `Backend` branch (already contains the API).
+2. In [Render](https://dashboard.render.com/) → **New** → **Blueprint** (or **Web Service**).
+3. Connect `LORDE01V/CLARITY`, branch **`Backend`**, root directory **`backend`**.
+4. Build: `pip install -r requirements.txt`  
+   Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`  
+   Health check: `/health`
+5. Add environment variables (same names as `backend/.env.example`):
+   - Supabase: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`
+   - `APP_ENV=production`
+   - `CORS_ORIGINS` — include localhost for now; add your frontend URL after FE deploy
+   - `FRONTEND_ORIGIN` — same as your FE origin when ready
+   - `OPENAI_API_KEY`, `OPENAI_MODEL=gpt-4o-mini`
+   - GitHub (optional at first): paste PEM into `GITHUB_PRIVATE_KEY` (not a file path)
+6. Deploy → open `https://YOUR_SERVICE.onrender.com/health` (should return `ok`).
+7. Point the GitHub App webhook to:  
+   `https://YOUR_SERVICE.onrender.com/api/v1/github/webhooks`
+
+Free tier spins down after idle; first request can take ~30–60s.
+
 ## License
 
 [MIT](LICENSE)

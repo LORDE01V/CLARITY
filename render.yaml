@@ -1,0 +1,58 @@
+# Render Blueprint — CLARITY API
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Deploy from the Backend branch with Root Directory = backend
+# (or connect this file from repo root and set rootDir below).
+
+services:
+  - type: web
+    name: clarity-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    branch: Backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_NAME
+        value: CLARITY
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      # Set these in the Render dashboard (Do not commit secrets)
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: OPENAI_WHISPER_MODEL
+        value: whisper-1
+      - key: JITSI_BASE_URL
+        value: https://meet.jit.si
+      - key: GITHUB_APP_ID
+        sync: false
+      - key: GITHUB_APP_SLUG
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+      - key: GITHUB_PRIVATE_KEY
+        sync: false
+      - key: GITHUB_INSTALLATION_ID
+        sync: false
+      - key: INVITE_TOKEN_EXPIRE_HOURS
+        value: "72"
