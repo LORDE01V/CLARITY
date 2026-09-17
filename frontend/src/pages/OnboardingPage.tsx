@@ -6,7 +6,7 @@ import { useWorkspace, slugifyOrgName } from "@/components/WorkspaceProvider";
 import { Button } from "@/components/ui/Button";
 
 export function OnboardingPage() {
-  const { user, isBypassMode } = useAuth();
+  const { user } = useAuth();
   const { createOrganization, needsOnboarding, loading, org } = useWorkspace();
   const navigate = useNavigate();
   const [name, setName] = useState("");
