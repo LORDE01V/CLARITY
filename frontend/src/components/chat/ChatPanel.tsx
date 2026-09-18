@@ -23,7 +23,6 @@ interface ChatPanelProps {
   loadingMessages: boolean;
   sending: boolean;
   error: string | null;
-  isDemo: boolean;
   hasTeam: boolean;
   currentUser: AuthUser;
   onSelectChannel: (channelId: string) => void;
@@ -126,7 +125,6 @@ export function ChatPanel({
   loadingMessages,
   sending,
   error,
-  isDemo,
   hasTeam,
   currentUser,
   onSelectChannel,

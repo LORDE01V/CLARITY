@@ -152,7 +152,6 @@ export function DashboardPage() {
               loadingMessages={chat.loadingMessages}
               sending={chat.sending}
               error={chat.error}
-              isDemo={chat.isDemo}
               hasTeam={chat.hasTeam}
               currentUser={user}
               onSelectChannel={chat.selectChannel}
