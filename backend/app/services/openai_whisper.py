@@ -14,7 +14,7 @@ class OpenAIWhisperClient:
         self,
         api_key: str,
         model: str = "whisper-1",
-        timeout: float = 120.0,
+        timeout: float = 300.0,
     ) -> None:
         self._api_key = api_key.strip()
         self._model = model.strip() or "whisper-1"
