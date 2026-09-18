@@ -74,8 +74,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const userId = user?.id ?? null;
+
   const hydrate = useCallback(async () => {
-    if (!user) {
+    if (!userId) {
       setOrg(null);
       setTeam(null);
       setTeams([]);
@@ -86,7 +88,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setError(null);
 
-    const saved = loadWorkspaceSelection(user.id);
+    const saved = loadWorkspaceSelection(userId);
     if (!saved) {
       setOrg(null);
       setTeam(null);
@@ -96,9 +98,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      await applySelection(saved.orgId, saved.teamId, user.id);
+      await applySelection(saved.orgId, saved.teamId, userId);
     } catch (err) {
-      clearWorkspaceSelection(user.id);
+      clearWorkspaceSelection(userId);
       setOrg(null);
       setTeam(null);
       setTeams([]);
@@ -106,7 +108,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [user, applySelection]);
+  }, [userId, applySelection]);
 
   useEffect(() => {
     void hydrate();

@@ -98,7 +98,19 @@ export function useTeamTasks() {
           api.teams.listMembers(teamId),
         ]);
         setTasks((prev) => (sameTaskSnapshot(prev, taskList) ? prev : taskList));
-        setMembers(memberList);
+        setMembers((prev) => {
+          if (
+            prev.length === memberList.length &&
+            prev.every(
+              (member, index) =>
+                member.user_id === memberList[index]?.user_id &&
+                member.role === memberList[index]?.role
+            )
+          ) {
+            return prev;
+          }
+          return memberList;
+        });
         setError(null);
         hasLoaded.current = true;
       } catch (err) {

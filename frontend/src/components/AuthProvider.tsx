@@ -111,7 +111,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         setAccessToken(session.access_token);
         void resolveUserFromSession(session).then((next) => {
-          if (!cancelled) setUser(next);
+          if (cancelled) return;
+          setUser((prev) =>
+            prev && prev.id === next.id && prev.email === next.email
+              ? prev
+              : next
+          );
         });
       }, 0);
     });
@@ -141,11 +146,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         access_token: session.access_token,
         refresh_token: session.refresh_token,
       });
+      // Prefer continuing with the API-issued JWT even if Supabase storage/network blips.
       if (error) {
-        setAccessToken(null);
-        throw new Error(error.message || "Failed to establish session");
+        console.warn("supabase setSession after login:", error.message);
       }
-      // Normalize id to string in case JSON ever varies; keep UI unblocked.
       setUser({ ...session.user, id: String(session.user.id) });
     },
     [bypassMode]
@@ -171,8 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refresh_token: session.refresh_token,
       });
       if (error) {
-        setAccessToken(null);
-        throw new Error(error.message || "Failed to establish session");
+        console.warn("supabase setSession after register:", error.message);
       }
       setUser({ ...session.user, id: String(session.user.id) });
     },

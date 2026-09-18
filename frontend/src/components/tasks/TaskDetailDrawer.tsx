@@ -73,7 +73,8 @@ export function TaskDetailDrawer({
     setStoryPoints(task.story_points != null ? String(task.story_points) : "");
     setParentTaskId(task.parent_task_id ?? "");
     setError(null);
-  }, [task]);
+    // Only re-hydrate when the opened task identity/version changes — not on every poll.
+  }, [task?.id, task?.updated_at]);
 
   useEffect(() => {
     if (!open) return;
