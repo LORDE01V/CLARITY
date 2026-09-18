@@ -1,21 +1,12 @@
 /**
- * Loads team chat conversations and messages; polls for new messages.
+ * Loads team chat conversations and messages; polls for new messages quietly.
+ * Live API only — no demo fixtures.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useWorkspace } from "@/components/WorkspaceProvider";
 import { api, ApiError } from "@/lib/api";
-import { isRealAuthPathReady } from "@/lib/auth/config";
-import {
-  createDemoChannel,
-  createDemoGroup,
-  listDemoChannels,
-  listDemoMessages,
-  listDemoTeamMembers,
-  sendDemoMessage,
-  startDemoDm,
-} from "@/lib/chat/demo";
 import type {
   ChatChannel,
   ChatChannelCreate,
@@ -47,7 +38,7 @@ function sortConversations(channels: ChatChannel[]): ChatChannel[] {
 }
 
 export function useTeamChat() {
-  const { user, isBypassMode } = useAuth();
+  const { user } = useAuth();
   const { team } = useWorkspace();
   const [channels, setChannels] = useState<ChatChannel[]>([]);
   const [members, setMembers] = useState<TeamMemberWithUser[]>([]);
@@ -62,9 +53,6 @@ export function useTeamChat() {
   const pollBusy = useRef(false);
 
   const teamId = team?.id ?? null;
-  const userId = user?.id ?? "";
-  // Never inject fixture chat when the API is available.
-  const useDemoChat = isBypassMode && !isRealAuthPathReady();
 
   const refreshChannels = useCallback(async (opts?: { silent?: boolean }) => {
     const silent = Boolean(opts?.silent);
@@ -82,22 +70,12 @@ export function useTeamChat() {
       setError(null);
     }
     try {
-      if (useDemoChat) {
-        const demoUser = user ?? {
-          id: userId,
-          email: "demo@clarity.local",
-          full_name: "Demo User",
-        };
-        setChannels(listDemoChannels(teamId, userId));
-        setMembers(listDemoTeamMembers(teamId, demoUser));
-      } else {
-        const [next, roster] = await Promise.all([
-          api.chat.listChannels(teamId),
-          api.teams.listMembers(teamId),
-        ]);
-        setChannels(next);
-        setMembers(roster);
-      }
+      const [next, roster] = await Promise.all([
+        api.chat.listChannels(teamId),
+        api.teams.listMembers(teamId),
+      ]);
+      setChannels(next);
+      setMembers(roster);
       if (!silent) setError(null);
     } catch (err) {
       if (!silent) {
@@ -108,7 +86,7 @@ export function useTeamChat() {
     } finally {
       if (!silent) setLoadingChannels(false);
     }
-  }, [teamId, useDemoChat, userId, user]);
+  }, [teamId]);
 
   useEffect(() => {
     setActiveChannelId((prev) => {
@@ -126,9 +104,7 @@ export function useTeamChat() {
         setError(null);
       }
       try {
-        const page = useDemoChat
-          ? listDemoMessages(channelId, { limit: 50 })
-          : await api.chat.listMessages(teamId, channelId, { limit: 50 });
+        const page = await api.chat.listMessages(teamId, channelId, { limit: 50 });
         setMessages(page.messages);
         setHasMore(page.has_more);
         latestCreatedAt.current =
@@ -144,27 +120,22 @@ export function useTeamChat() {
         if (!silent) setLoadingMessages(false);
       }
     },
-    [teamId, useDemoChat]
+    [teamId]
   );
 
   const loadOlder = useCallback(async () => {
     if (!teamId || !activeChannelId || !messages[0] || !hasMore) return;
     try {
-      const page = useDemoChat
-        ? listDemoMessages(activeChannelId, {
-            limit: 50,
-            before: messages[0].created_at,
-          })
-        : await api.chat.listMessages(teamId, activeChannelId, {
-            limit: 50,
-            before: messages[0].created_at,
-          });
+      const page = await api.chat.listMessages(teamId, activeChannelId, {
+        limit: 50,
+        before: messages[0].created_at,
+      });
       setMessages((prev) => [...page.messages, ...prev]);
       setHasMore(page.has_more);
     } catch (err) {
       setError(formatError(err, "Could not load older messages"));
     }
-  }, [teamId, activeChannelId, messages, hasMore, useDemoChat]);
+  }, [teamId, activeChannelId, messages, hasMore]);
 
   useEffect(() => {
     void refreshChannels();
@@ -180,7 +151,7 @@ export function useTeamChat() {
   }, [activeChannelId, loadMessages]);
 
   useEffect(() => {
-    if (!teamId || !activeChannelId || useDemoChat) return;
+    if (!teamId || !activeChannelId) return;
 
     const tick = async () => {
       if (pollBusy.current || !latestCreatedAt.current) return;
@@ -212,7 +183,7 @@ export function useTeamChat() {
       void tick();
     }, POLL_MS);
     return () => window.clearInterval(handle);
-  }, [teamId, activeChannelId, useDemoChat]);
+  }, [teamId, activeChannelId]);
 
   const upsertChannel = useCallback((created: ChatChannel) => {
     setChannels((prev) => {
@@ -225,39 +196,33 @@ export function useTeamChat() {
   const createChannel = useCallback(
     async (payload: ChatChannelCreate) => {
       if (!teamId) throw new Error("No active team");
-      const created = useDemoChat
-        ? createDemoChannel(teamId, userId, payload)
-        : await api.chat.createChannel(teamId, payload);
+      const created = await api.chat.createChannel(teamId, payload);
       upsertChannel(created);
       return created;
     },
-    [teamId, useDemoChat, userId, upsertChannel]
+    [teamId, upsertChannel]
   );
 
   const startDm = useCallback(
     async (payload: ChatDirectMessageCreate) => {
       if (!teamId) throw new Error("No active team");
       if (!user) throw new Error("You must be signed in");
-      const created = useDemoChat
-        ? startDemoDm(teamId, user, payload)
-        : await api.chat.startDm(teamId, payload);
+      const created = await api.chat.startDm(teamId, payload);
       upsertChannel(created);
       return created;
     },
-    [teamId, useDemoChat, user, upsertChannel]
+    [teamId, user, upsertChannel]
   );
 
   const createGroup = useCallback(
     async (payload: ChatGroupCreate) => {
       if (!teamId) throw new Error("No active team");
       if (!user) throw new Error("You must be signed in");
-      const created = useDemoChat
-        ? createDemoGroup(teamId, user, payload)
-        : await api.chat.createGroup(teamId, payload);
+      const created = await api.chat.createGroup(teamId, payload);
       upsertChannel(created);
       return created;
     },
-    [teamId, useDemoChat, user, upsertChannel]
+    [teamId, user, upsertChannel]
   );
 
   const sendMessage = useCallback(
@@ -267,9 +232,7 @@ export function useTeamChat() {
       setSending(true);
       setError(null);
       try {
-        const created = useDemoChat
-          ? sendDemoMessage(activeChannelId, user, payload)
-          : await api.chat.sendMessage(teamId, activeChannelId, payload);
+        const created = await api.chat.sendMessage(teamId, activeChannelId, payload);
         setMessages((prev) => {
           if (prev.some((m) => m.id === created.id)) return prev;
           return [...prev, created];
@@ -283,7 +246,7 @@ export function useTeamChat() {
         setSending(false);
       }
     },
-    [teamId, activeChannelId, user, useDemoChat]
+    [teamId, activeChannelId, user]
   );
 
   const selectChannel = useCallback((channelId: string) => {
@@ -306,7 +269,7 @@ export function useTeamChat() {
     loadingMessages,
     sending,
     error,
-    isDemo: useDemoChat,
+    isDemo: false,
     hasTeam: Boolean(teamId),
     selectChannel,
     createChannel,

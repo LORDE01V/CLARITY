@@ -158,7 +158,7 @@ export function NewRecapForm({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className="clarity-input mt-2"
-          placeholder="Q3 planning sync"
+          placeholder="Meeting title"
           required
           maxLength={200}
         />
@@ -180,7 +180,7 @@ export function NewRecapForm({
           value={meetingUrl}
           onChange={(e) => setMeetingUrl(e.target.value)}
           className="clarity-input mt-2"
-          placeholder="https://meet.jit.si/clarity-team-standup"
+          placeholder="https://meet.jit.si/your-room"
         />
       </label>
       {error && <p className="text-[12px] text-destructive">{error}</p>}

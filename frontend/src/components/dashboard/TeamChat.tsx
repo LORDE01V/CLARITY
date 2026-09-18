@@ -13,8 +13,8 @@ interface TeamChatProps {
 
 function previewAuthor(message: ChatMessage): string {
   return (
-    message.author?.full_name?.trim() ||
-    message.author?.email?.split("@")[0] ||
+    message.author_name?.trim() ||
+    message.author_email?.split("@")[0] ||
     "Teammate"
   );
 }

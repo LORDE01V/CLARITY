@@ -1,5 +1,5 @@
 /**
- * In-memory chat store for auth-bypass demo mode.
+ * Offline chat stubs — empty only. Never seed fake teammates or messages.
  */
 
 import type {
@@ -15,36 +15,6 @@ import type { TeamMemberWithUser } from "@/types/team";
 
 const channelsByTeam = new Map<string, ChatChannel[]>();
 const messagesByChannel = new Map<string, ChatMessage[]>();
-
-const DEMO_MEMBERS: TeamMemberWithUser[] = [
-  {
-    id: "demo-mem-1",
-    team_id: "demo-team",
-    user_id: "demo-peer-1",
-    role: "member",
-    joined_at: new Date().toISOString(),
-    email: "alex@clarity.local",
-    full_name: "Alex Rivera",
-  },
-  {
-    id: "demo-mem-2",
-    team_id: "demo-team",
-    user_id: "demo-peer-2",
-    role: "member",
-    joined_at: new Date().toISOString(),
-    email: "jordan@clarity.local",
-    full_name: "Jordan Lee",
-  },
-  {
-    id: "demo-mem-3",
-    team_id: "demo-team",
-    user_id: "demo-peer-3",
-    role: "project_manager",
-    joined_at: new Date().toISOString(),
-    email: "sam@clarity.local",
-    full_name: "Sam Okonkwo",
-  },
-];
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -80,17 +50,7 @@ function ensureGeneral(teamId: string, userId: string): ChatChannel[] {
     };
     channels = [general];
     channelsByTeam.set(teamId, channels);
-    messagesByChannel.set(general.id, [
-      {
-        id: id(),
-        channel_id: general.id,
-        author_id: userId,
-        author_email: "demo@clarity.local",
-        author_name: "Demo User",
-        body: "Welcome to team chat. Messages stay in demo mode until you sign in.",
-        created_at: nowIso(),
-      },
-    ]);
+    messagesByChannel.set(general.id, []);
   }
   return channels;
 }
@@ -101,15 +61,14 @@ export function listDemoTeamMembers(
 ): TeamMemberWithUser[] {
   return [
     {
-      id: "demo-self",
+      id: "local-self",
       team_id: teamId,
       user_id: currentUser.id,
       role: "owner",
       joined_at: nowIso(),
       email: currentUser.email,
-      full_name: currentUser.full_name ?? "Demo User",
+      full_name: currentUser.full_name ?? null,
     },
-    ...DEMO_MEMBERS.map((m) => ({ ...m, team_id: teamId })),
   ];
 }
 
@@ -150,11 +109,8 @@ export function startDemoDm(
   payload: ChatDirectMessageCreate
 ): ChatChannel {
   const channels = ensureGeneral(teamId, currentUser.id);
-  const peer =
-    DEMO_MEMBERS.find((m) => m.user_id === payload.user_id) ??
-    listDemoTeamMembers(teamId, currentUser).find(
-      (m) => m.user_id === payload.user_id
-    );
+  const roster = listDemoTeamMembers(teamId, currentUser);
+  const peer = roster.find((m) => m.user_id === payload.user_id);
   if (!peer || peer.user_id === currentUser.id) {
     throw new Error("Recipient must be a member of this team");
   }

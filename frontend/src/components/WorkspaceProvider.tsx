@@ -2,8 +2,7 @@
  * Active organization / team context for the authenticated session.
  *
  * Hydrates from localStorage, then verifies via existing org/team APIs.
- * Create-org and invite-accept update the selection so the dashboard
- * stays scoped to a real team id.
+ * Never injects a fake demo org/team into the dashboard.
  */
 
 import {
@@ -17,7 +16,6 @@ import {
 } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { api, ApiError } from "@/lib/api";
-import { DEMO_ORG, DEMO_TEAM } from "@/lib/workspace/demo";
 import {
   clearWorkspaceSelection,
   loadWorkspaceSelection,
@@ -51,7 +49,7 @@ function formatApiError(err: unknown, fallback: string): string {
 }
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const { user, isBypassMode } = useAuth();
+  const { user } = useAuth();
   const [org, setOrg] = useState<Organization | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -88,14 +86,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setError(null);
 
-    if (isBypassMode) {
-      setOrg(DEMO_ORG);
-      setTeam(DEMO_TEAM);
-      setTeams([DEMO_TEAM]);
-      setLoading(false);
-      return;
-    }
-
     const saved = loadWorkspaceSelection(user.id);
     if (!saved) {
       setOrg(null);
@@ -116,7 +106,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [user, isBypassMode, applySelection]);
+  }, [user, applySelection]);
 
   useEffect(() => {
     void hydrate();
@@ -125,12 +115,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const createOrganization = useCallback(
     async (payload: OrganizationCreate) => {
       if (!user) throw new Error("You must be signed in");
-      if (isBypassMode) {
-        setOrg({ ...DEMO_ORG, name: payload.name, slug: payload.slug });
-        setTeam(DEMO_TEAM);
-        setTeams([DEMO_TEAM]);
-        return;
-      }
 
       setError(null);
       const created = await api.orgs.create(payload);
@@ -148,35 +132,24 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setTeam(general);
       saveWorkspaceSelection(user.id, { orgId: created.id, teamId: general.id });
     },
-    [user, isBypassMode]
+    [user]
   );
 
   const selectTeam = useCallback(
     async (teamId: string) => {
       if (!user || !org) return;
-      if (isBypassMode) {
-        const demo = teams.find((item) => item.id === teamId) ?? DEMO_TEAM;
-        setTeam(demo);
-        return;
-      }
 
       const next = teams.find((item) => item.id === teamId) ?? (await api.teams.get(teamId));
       setTeam(next);
       saveWorkspaceSelection(user.id, { orgId: org.id, teamId: next.id });
     },
-    [user, org, teams, isBypassMode]
+    [user, org, teams]
   );
 
   /** After invite accept: resolve team → org and persist as active workspace. */
   const adoptTeam = useCallback(
     async (teamId: string) => {
       if (!user) throw new Error("You must be signed in");
-      if (isBypassMode) {
-        setOrg(DEMO_ORG);
-        setTeam(DEMO_TEAM);
-        setTeams([DEMO_TEAM]);
-        return;
-      }
 
       setError(null);
       const nextTeam = await api.teams.get(teamId);
@@ -188,7 +161,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setTeams(orgTeams);
       saveWorkspaceSelection(user.id, { orgId: nextOrg.id, teamId: nextTeam.id });
     },
-    [user, isBypassMode]
+    [user]
   );
 
   const refresh = useCallback(async () => {
@@ -197,7 +170,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const clearError = useCallback(() => setError(null), []);
 
-  const needsOnboarding = Boolean(user && !isBypassMode && !loading && !org);
+  const needsOnboarding = Boolean(user && !loading && !org);
 
   const value = useMemo(
     () => ({
