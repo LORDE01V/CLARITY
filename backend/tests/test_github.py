@@ -363,14 +363,15 @@ def test_connect_url_uses_app_slug(github_client, github_service, owner_user):
     assert data["state"]
 
     # Service-level: authenticated connect does not flag requires_session.
-    linked = github_service.build_connect_url(
+    linked = await github_service.build_connect_url(
         user_id=owner_user.id,
         requires_session=False,
     )
     assert linked.requires_session is False
     assert linked.app_slug == "clarity-local"
 
-def test_connect_url_requires_slug_or_client_id(github_events, github_installations):
+@pytest.mark.asyncio
+async def test_connect_url_requires_slug_or_client_id(github_events, github_installations):
     settings = Settings(
         supabase_url="http://localhost:54321",
         supabase_anon_key="test-anon-key",
@@ -387,7 +388,7 @@ def test_connect_url_requires_slug_or_client_id(github_events, github_installati
         installation_repo=github_installations,
     )
     with pytest.raises(Exception) as exc:
-        service.build_connect_url()
+        await service.build_connect_url()
     assert "GITHUB_APP_SLUG" in str(exc.value)
 
 
@@ -483,7 +484,7 @@ async def test_callback_links_installation_to_team(
 ):
     team_id = uuid4()
     user_id = uuid4()
-    connect = github_service.build_connect_url(user_id=user_id, team_id=team_id)
+    connect = await github_service.build_connect_url(user_id=user_id, team_id=team_id)
     result = await github_service.handle_setup_callback(
         installation_id="777001",
         setup_action="install",

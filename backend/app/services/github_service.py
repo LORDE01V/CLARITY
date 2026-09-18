@@ -82,7 +82,7 @@ class GitHubService:
         if not hmac.compare_digest(expected, signature_header.strip()):
             raise AuthenticationError("Invalid GitHub webhook signature")
 
-    def build_connect_url(
+    async def build_connect_url(
         self,
         *,
         user_id: UUID | None = None,
@@ -104,6 +104,14 @@ class GitHubService:
             user_id=str(user_id) if user_id else None,
             team_id=str(team_id) if team_id else None,
         )
+        if self._installation_repo and hasattr(
+            self._installation_repo, "put_connect_state"
+        ):
+            await self._installation_repo.put_connect_state(
+                state,
+                user_id=str(user_id) if user_id else None,
+                team_id=str(team_id) if team_id else None,
+            )
 
         if slug:
             query = urlencode({"state": state})
@@ -159,6 +167,10 @@ class GitHubService:
             )
 
         pending = pop_pending_connect_state(state.strip()) if state else None
+        if pending is None and state and self._installation_repo and hasattr(
+            self._installation_repo, "pop_connect_state"
+        ):
+            pending = await self._installation_repo.pop_connect_state(state.strip())
         user_id = None
         team_id = None
         if pending:

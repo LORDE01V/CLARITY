@@ -2,8 +2,12 @@
 
 from app.core.config import get_settings
 from app.db.repositories.chat_repository import SupabaseChatRepository
-from app.db.repositories.github_event_repository import get_shared_github_event_store
+from app.db.repositories.github_event_repository import (
+    SupabaseGitHubEventRepository,
+    get_shared_github_event_store,
+)
 from app.db.repositories.github_installation_repository import (
+    SupabaseGitHubInstallationRepository,
     get_shared_github_installation_store,
 )
 from app.db.repositories.invite_repository import SupabaseInviteRepository
@@ -101,15 +105,24 @@ def get_auth_service() -> AuthService:
 
 def get_github_service() -> GitHubService:
     """
-    Provide GitHubService with shared in-memory event + installation stores.
+    Provide GitHubService with Supabase-backed event + installation stores.
 
-    Task completion on merged PRs is best-effort and only activates when a
-    task repository exposing an in-memory map is injected (tests / local wiring).
+    Falls back to in-memory stores only when the Supabase client cannot be
+    created (local tests without env). Task completion on merged PRs is
+    best-effort when a task repository is injected (tests).
     """
+    try:
+        client = get_supabase_client()
+        event_repo = SupabaseGitHubEventRepository(client)
+        installation_repo = SupabaseGitHubInstallationRepository(client)
+    except Exception:
+        event_repo = get_shared_github_event_store()
+        installation_repo = get_shared_github_installation_store()
+
     return GitHubService(
         settings=get_settings(),
-        event_repo=get_shared_github_event_store(),
-        installation_repo=get_shared_github_installation_store(),
+        event_repo=event_repo,
+        installation_repo=installation_repo,
         task_repo=None,
     )
 

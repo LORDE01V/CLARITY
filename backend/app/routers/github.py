@@ -69,7 +69,7 @@ async def github_connect(
     `installation` webhook and (if configured) redirects to /callback.
     """
     requires_session = user is None
-    return github_service.build_connect_url(
+    return await github_service.build_connect_url(
         user_id=user.id if user else None,
         team_id=team_id,
         requires_session=requires_session,
