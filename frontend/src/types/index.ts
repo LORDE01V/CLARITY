@@ -12,6 +12,13 @@ export type {
 } from "./chat";
 export { conversationTitle } from "./chat";
 export type { GitHubActivityItem, GitHubConnect, GitHubStatus } from "./github";
+export type {
+  DocumentCreate,
+  DocumentRevision,
+  DocumentUpdate,
+  TeamDocument,
+  TeamDocumentSummary,
+} from "./document";
 export type { Invite, InviteAcceptResponse, InviteCreate } from "./invite";
 export type { Organization, OrganizationCreate, OrganizationSummary } from "./org";
 export type {

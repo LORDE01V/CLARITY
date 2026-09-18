@@ -19,8 +19,10 @@ import {
 } from "@/components/meetings/MeetingRoom";
 import { TasksBoard } from "@/components/tasks/TasksBoard";
 import { TimesheetsPanel } from "@/components/timesheets/TimesheetsPanel";
+import { DocsPanel } from "@/components/docs/DocsPanel";
 import { TeamWorkspacePanel } from "@/components/workspace/TeamWorkspacePanel";
 import { useTeamChat } from "@/hooks/useTeamChat";
+import { useTeamDocs } from "@/hooks/useTeamDocs";
 import { useTeamMeetings } from "@/hooks/useTeamMeetings";
 import { useTeamRecaps } from "@/hooks/useTeamRecaps";
 import { useTeamTasks } from "@/hooks/useTeamTasks";
@@ -54,6 +56,7 @@ export function DashboardPage() {
   const recaps = useTeamRecaps();
   const meetings = useTeamMeetings();
   const timesheets = useTeamTimesheets(timesheetWeekOffset);
+  const docs = useTeamDocs();
 
   const meetingQuery = searchParams.get("meeting");
 
@@ -82,6 +85,7 @@ export function DashboardPage() {
   const showTeam = activeNav === "Team";
   const showTasks = activeNav === "Tasks";
   const showTimesheets = activeNav === "Timesheets";
+  const showDocs = activeNav === "Docs";
   const showChat = activeNav === "Chat";
   const showCode = activeNav === "Code";
 
@@ -179,6 +183,35 @@ export function DashboardPage() {
                 await timesheets.removeEntry(entryId);
               }}
               onClearError={timesheets.clearError}
+            />
+          ) : showDocs ? (
+            <DocsPanel
+              docs={docs.docs}
+              active={docs.active}
+              history={docs.history}
+              people={people.map((person) => ({
+                id: person.id,
+                name: person.name,
+              }))}
+              loading={docs.loading}
+              saving={docs.saving}
+              error={docs.error}
+              hasTeam={docs.hasTeam}
+              onOpen={docs.openDocument}
+              onClose={docs.closeDocument}
+              onCreate={async (title, body) => {
+                await docs.createDocument({ title, body });
+              }}
+              onSave={async (documentId, input) => {
+                await docs.saveDocument(documentId, input);
+              }}
+              onDelete={async (documentId) => {
+                await docs.removeDocument(documentId);
+              }}
+              onRestore={async (documentId, revisionId) => {
+                await docs.restoreRevision(documentId, revisionId);
+              }}
+              onClearError={docs.clearError}
             />
           ) : showChat ? (
             <ChatPanel

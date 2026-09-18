@@ -14,6 +14,9 @@ import type {
   ChatMessage,
   ChatMessageCreate,
   ChatMessagePage,
+  DocumentCreate,
+  DocumentRevision,
+  DocumentUpdate,
   GitHubActivityItem,
   GitHubConnect,
   GitHubStatus,
@@ -36,6 +39,8 @@ import type {
   TaskUpdate,
   Team,
   TeamCreate,
+  TeamDocument,
+  TeamDocumentSummary,
   TeamMeeting,
   TeamMemberWithUser,
   TimeEntry,
@@ -398,6 +403,47 @@ export const api = {
       request<void>(`/teams/${teamId}/timesheets/${entryId}`, {
         method: "DELETE",
       }),
+  },
+
+  docs: {
+    list: (teamId: string) =>
+      request<TeamDocumentSummary[]>(`/teams/${teamId}/docs`),
+
+    get: (teamId: string, documentId: string) =>
+      request<TeamDocument>(`/teams/${teamId}/docs/${documentId}`),
+
+    create: (teamId: string, payload: DocumentCreate) =>
+      request<TeamDocument>(`/teams/${teamId}/docs`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+
+    update: (teamId: string, documentId: string, payload: DocumentUpdate) =>
+      request<TeamDocument>(`/teams/${teamId}/docs/${documentId}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      }),
+
+    delete: (teamId: string, documentId: string) =>
+      request<void>(`/teams/${teamId}/docs/${documentId}`, {
+        method: "DELETE",
+      }),
+
+    history: (teamId: string, documentId: string) =>
+      request<DocumentRevision[]>(
+        `/teams/${teamId}/docs/${documentId}/history`
+      ),
+
+    getRevision: (teamId: string, documentId: string, revisionId: string) =>
+      request<DocumentRevision>(
+        `/teams/${teamId}/docs/${documentId}/history/${revisionId}`
+      ),
+
+    restore: (teamId: string, documentId: string, revisionId: string) =>
+      request<TeamDocument>(
+        `/teams/${teamId}/docs/${documentId}/restore/${revisionId}`,
+        { method: "POST", body: JSON.stringify({}) }
+      ),
   },
 };
 
