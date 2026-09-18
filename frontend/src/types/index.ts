@@ -32,4 +32,10 @@ export type {
   TaskStatusUpdate,
   TaskUpdate,
 } from "./task";
+export type {
+  TimeEntry,
+  TimeEntryCreate,
+  TimeEntryListParams,
+  TimeEntryUpdate,
+} from "./timesheet";
 export type { Team, TeamCreate, TeamMember, TeamMemberWithUser } from "./team";

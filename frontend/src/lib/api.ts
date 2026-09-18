@@ -38,6 +38,10 @@ import type {
   TeamCreate,
   TeamMeeting,
   TeamMemberWithUser,
+  TimeEntry,
+  TimeEntryCreate,
+  TimeEntryListParams,
+  TimeEntryUpdate,
 } from "@/types";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
@@ -362,6 +366,37 @@ export const api = {
       request<MeetingRecap>(`/teams/${teamId}/meetings/${meetingId}/recap`, {
         method: "POST",
         body: JSON.stringify({ transcript }),
+      }),
+  },
+
+  timesheets: {
+    list: (teamId: string, params: TimeEntryListParams = {}) => {
+      const search = new URLSearchParams();
+      if (params.user_id) search.set("user_id", params.user_id);
+      if (params.task_id) search.set("task_id", params.task_id);
+      if (params.date_from) search.set("date_from", params.date_from);
+      if (params.date_to) search.set("date_to", params.date_to);
+      const query = search.toString();
+      return request<TimeEntry[]>(
+        `/teams/${teamId}/timesheets${query ? `?${query}` : ""}`
+      );
+    },
+
+    create: (teamId: string, payload: TimeEntryCreate) =>
+      request<TimeEntry>(`/teams/${teamId}/timesheets`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+
+    update: (teamId: string, entryId: string, payload: TimeEntryUpdate) =>
+      request<TimeEntry>(`/teams/${teamId}/timesheets/${entryId}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      }),
+
+    delete: (teamId: string, entryId: string) =>
+      request<void>(`/teams/${teamId}/timesheets/${entryId}`, {
+        method: "DELETE",
       }),
   },
 };

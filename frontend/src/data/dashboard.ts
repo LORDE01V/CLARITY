@@ -1,4 +1,5 @@
 import {
+  Clock3,
   Code2,
   LayoutDashboard,
   MessageCircle,
@@ -25,6 +26,7 @@ export interface ActivityItem {
 export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard },
   { label: "Tasks", icon: SquareCheckBig },
+  { label: "Timesheets", icon: Clock3 },
   { label: "Chat", icon: MessageCircle },
   { label: "Team", icon: Users },
   { label: "Meetings", icon: Video },

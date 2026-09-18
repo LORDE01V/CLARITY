@@ -18,11 +18,13 @@ import {
   StartMeetingForm,
 } from "@/components/meetings/MeetingRoom";
 import { TasksBoard } from "@/components/tasks/TasksBoard";
+import { TimesheetsPanel } from "@/components/timesheets/TimesheetsPanel";
 import { TeamWorkspacePanel } from "@/components/workspace/TeamWorkspacePanel";
 import { useTeamChat } from "@/hooks/useTeamChat";
 import { useTeamMeetings } from "@/hooks/useTeamMeetings";
 import { useTeamRecaps } from "@/hooks/useTeamRecaps";
 import { useTeamTasks } from "@/hooks/useTeamTasks";
+import { useTeamTimesheets } from "@/hooks/useTeamTimesheets";
 import type { MeetingRecap, TaskStatus } from "@/types";
 
 export function DashboardPage() {
@@ -34,6 +36,7 @@ export function DashboardPage() {
   const [activeRecap, setActiveRecap] = useState<MeetingRecap | null>(null);
   const [startMeetingOpen, setStartMeetingOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const [timesheetWeekOffset, setTimesheetWeekOffset] = useState(0);
   const {
     tasks,
     people,
@@ -50,6 +53,7 @@ export function DashboardPage() {
   const chat = useTeamChat();
   const recaps = useTeamRecaps();
   const meetings = useTeamMeetings();
+  const timesheets = useTeamTimesheets(timesheetWeekOffset);
 
   const meetingQuery = searchParams.get("meeting");
 
@@ -77,8 +81,11 @@ export function DashboardPage() {
 
   const showTeam = activeNav === "Team";
   const showTasks = activeNav === "Tasks";
+  const showTimesheets = activeNav === "Timesheets";
   const showChat = activeNav === "Chat";
   const showCode = activeNav === "Code";
+
+  const weekLabel = `${timesheets.week.from} → ${timesheets.week.to}`;
 
   return (
     <div className="clarity-dashboard relative z-10 text-foreground">
@@ -140,6 +147,38 @@ export function DashboardPage() {
                 await removeTask(taskId);
               }}
               onClearError={clearError}
+            />
+          ) : showTimesheets ? (
+            <TimesheetsPanel
+              entries={timesheets.entries}
+              tasks={tasks}
+              people={people.map((person) => ({
+                id: person.id,
+                name: person.name,
+              }))}
+              loading={timesheets.loading}
+              saving={timesheets.saving}
+              error={timesheets.error}
+              hasTeam={timesheets.hasTeam}
+              currentUserId={user.id}
+              weekLabel={weekLabel}
+              totalHours={timesheets.totalHours}
+              onPrevWeek={() => setTimesheetWeekOffset((n) => n - 1)}
+              onNextWeek={() => setTimesheetWeekOffset((n) => n + 1)}
+              onThisWeek={() => setTimesheetWeekOffset(0)}
+              onCreate={async (input) => {
+                await timesheets.createEntry({
+                  work_date: input.work_date,
+                  hours: input.hours,
+                  task_id: input.task_id,
+                  title: input.title,
+                  description: input.description,
+                });
+              }}
+              onDelete={async (entryId) => {
+                await timesheets.removeEntry(entryId);
+              }}
+              onClearError={timesheets.clearError}
             />
           ) : showChat ? (
             <ChatPanel
