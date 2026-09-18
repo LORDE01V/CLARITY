@@ -17,6 +17,7 @@ from app.db.repositories.team_repository import (
     SupabaseMemberRepository,
     SupabaseTeamRepository,
 )
+from app.db.repositories.timesheet_repository import SupabaseTimeEntryRepository
 from app.db.supabase import get_supabase_client
 from app.services.auth_service import AuthService
 from app.services.chat_service import ChatService
@@ -27,6 +28,7 @@ from app.services.org_service import OrganizationService
 from app.services.recap_service import RecapService
 from app.services.task_service import TaskService
 from app.services.team_service import TeamService
+from app.services.timesheet_service import TimesheetService
 from app.db.repositories.meeting_repository import SupabaseMeetingRepository
 from app.db.repositories.recap_repository import SupabaseRecapRepository
 from app.services.meeting_service import MeetingService
@@ -79,6 +81,16 @@ def get_task_service() -> TaskService:
     """Provide TaskService with Supabase repositories."""
     client = get_supabase_client()
     return TaskService(
+        task_repo=SupabaseTaskRepository(client),
+        team_service=get_team_service(),
+    )
+
+
+def get_timesheet_service() -> TimesheetService:
+    """Provide TimesheetService with Supabase repositories."""
+    client = get_supabase_client()
+    return TimesheetService(
+        time_repo=SupabaseTimeEntryRepository(client),
         task_repo=SupabaseTaskRepository(client),
         team_service=get_team_service(),
     )
