@@ -31,6 +31,7 @@ class TaskService:
     ) -> TaskResponse:
         """Create a task on a team board (Member+ required)."""
         await self._team_service.require_team_role(team_id, actor, Role.MEMBER)
+        await self._validate_parent(team_id, payload.parent_task_id, child_id=None)
         return await self._task_repo.create(team_id, payload)
 
     async def list_tasks(
@@ -61,8 +62,14 @@ class TaskService:
         await self._team_service.require_team_role(team_id, actor, Role.MEMBER)
         await self._get_team_task(team_id, task_id)
 
-        if not payload.model_dump(exclude_unset=True):
+        data = payload.model_dump(exclude_unset=True)
+        if not data:
             raise ValidationError("No fields to update")
+
+        if "parent_task_id" in data:
+            await self._validate_parent(
+                team_id, payload.parent_task_id, child_id=task_id
+            )
 
         return await self._task_repo.update(task_id, payload)
 
@@ -93,3 +100,20 @@ class TaskService:
         if task is None or task.team_id != team_id:
             raise NotFoundError("Task not found")
         return task
+
+    async def _validate_parent(
+        self,
+        team_id: UUID,
+        parent_task_id: UUID | None,
+        *,
+        child_id: UUID | None,
+    ) -> None:
+        if parent_task_id is None:
+            return
+        if child_id is not None and parent_task_id == child_id:
+            raise ValidationError("A task cannot be linked to itself")
+        parent = await self._task_repo.get_by_id(parent_task_id)
+        if parent is None or parent.team_id != team_id:
+            raise ValidationError("Parent task not found on this team")
+        if child_id is not None and parent.parent_task_id == child_id:
+            raise ValidationError("Circular task link is not allowed")

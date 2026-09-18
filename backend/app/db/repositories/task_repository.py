@@ -53,6 +53,8 @@ class SupabaseTaskRepository:
             "assignee_id": str(payload.assignee_id) if payload.assignee_id else None,
             "due_date": payload.due_date.isoformat() if payload.due_date else None,
             "position": position,
+            "story_points": payload.story_points,
+            "parent_task_id": str(payload.parent_task_id) if payload.parent_task_id else None,
             "created_at": now,
             "updated_at": now,
         }
@@ -90,6 +92,8 @@ class SupabaseTaskRepository:
         updates = payload.model_dump(exclude_unset=True)
         if "assignee_id" in updates and updates["assignee_id"] is not None:
             updates["assignee_id"] = str(updates["assignee_id"])
+        if "parent_task_id" in updates and updates["parent_task_id"] is not None:
+            updates["parent_task_id"] = str(updates["parent_task_id"])
         if "due_date" in updates and updates["due_date"] is not None:
             updates["due_date"] = updates["due_date"].isoformat()
         updates["updated_at"] = datetime.now(timezone.utc).isoformat()
@@ -175,6 +179,8 @@ class InMemoryTaskRepository:
             assignee_id=payload.assignee_id,
             due_date=payload.due_date,
             position=position,
+            story_points=payload.story_points,
+            parent_task_id=payload.parent_task_id,
             created_at=now,
             updated_at=now,
         )

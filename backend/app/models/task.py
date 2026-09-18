@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.models.enums import TaskStatus
 
@@ -17,6 +17,8 @@ class TaskCreate(BaseModel):
     assignee_id: UUID | None = None
     due_date: date | None = None
     position: int | None = Field(default=None, ge=0)
+    story_points: int | None = Field(default=None, ge=1, le=100)
+    parent_task_id: UUID | None = None
 
 
 class TaskUpdate(BaseModel):
@@ -27,6 +29,15 @@ class TaskUpdate(BaseModel):
     assignee_id: UUID | None = None
     due_date: date | None = None
     position: int | None = Field(default=None, ge=0)
+    story_points: int | None = Field(default=None, ge=1, le=100)
+    parent_task_id: UUID | None = None
+
+    @field_validator("story_points", mode="before")
+    @classmethod
+    def empty_points_as_none(cls, value: object) -> object:
+        if value == "" or value is False:
+            return None
+        return value
 
 
 class TaskStatusUpdate(BaseModel):
@@ -47,5 +58,16 @@ class TaskResponse(BaseModel):
     assignee_id: UUID | None = None
     due_date: date | None = None
     position: int
+    story_points: int | None = None
+    parent_task_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
+
+    @model_validator(mode="before")
+    @classmethod
+    def coerce_missing_link_fields(cls, data: object) -> object:
+        """Older rows / fixtures may omit story_points / parent_task_id."""
+        if isinstance(data, dict):
+            data.setdefault("story_points", None)
+            data.setdefault("parent_task_id", None)
+        return data

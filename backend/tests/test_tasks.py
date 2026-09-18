@@ -272,3 +272,76 @@ async def test_guest_cannot_create_task_via_api(client, seeded_org, repos):
     )
 
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_create_task_with_story_points_and_parent(
+    repos, org_service, team_service, task_service, owner_user, member_user
+):
+    """Members can set story points and link a bug to a parent task."""
+    org = await org_service.create_organization(
+        OrganizationCreate(name="Acme Corp", slug="acme-corp"),
+        owner_user,
+    )
+    team = await team_service.create_team(
+        org.id, TeamCreate(name="Engineering"), owner_user
+    )
+    await repos["member"].add_member(team.id, member_user.id, Role.MEMBER)
+
+    parent = await task_service.create_task(
+        team.id,
+        TaskCreate(title="Checkout flow", story_points=8),
+        member_user,
+    )
+    bug = await task_service.create_task(
+        team.id,
+        TaskCreate(
+            title="Fix null price crash",
+            story_points=2,
+            parent_task_id=parent.id,
+        ),
+        member_user,
+    )
+
+    assert parent.story_points == 8
+    assert parent.parent_task_id is None
+    assert bug.story_points == 2
+    assert bug.parent_task_id == parent.id
+
+    updated = await task_service.update_task(
+        team.id,
+        bug.id,
+        TaskUpdate(story_points=3, parent_task_id=None),
+        member_user,
+    )
+    assert updated.story_points == 3
+    assert updated.parent_task_id is None
+
+
+@pytest.mark.asyncio
+async def test_cannot_link_task_to_itself(
+    repos, org_service, team_service, task_service, owner_user, member_user
+):
+    """Parent links reject self-references."""
+    org = await org_service.create_organization(
+        OrganizationCreate(name="Acme Corp", slug="acme-corp"),
+        owner_user,
+    )
+    team = await team_service.create_team(
+        org.id, TeamCreate(name="Engineering"), owner_user
+    )
+    await repos["member"].add_member(team.id, member_user.id, Role.MEMBER)
+
+    task = await task_service.create_task(
+        team.id, TaskCreate(title="Self"), member_user
+    )
+
+    from app.core.exceptions import ValidationError
+
+    with pytest.raises(ValidationError):
+        await task_service.update_task(
+            team.id,
+            task.id,
+            TaskUpdate(parent_task_id=task.id),
+            member_user,
+        )
