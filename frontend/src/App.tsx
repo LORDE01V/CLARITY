@@ -26,7 +26,7 @@ export function App() {
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<DashboardPage />} />
             </Route>
-            <Route path="*" element={<Navigate to="/welcome" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </WorkspaceProvider>
       </BrowserRouter>

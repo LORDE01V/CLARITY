@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/components/AuthProvider";
 import { useWorkspace } from "@/components/WorkspaceProvider";
 import { AppBackground } from "@/components/layout/AppBackground";
@@ -27,6 +28,7 @@ import type { MeetingRecap, TaskStatus } from "@/types";
 export function DashboardPage() {
   const { user, logout } = useAuth();
   const { org, team } = useWorkspace();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeNav, setActiveNav] = useState("Dashboard");
   const [recapMode, setRecapMode] = useState<"create" | "review" | null>(null);
   const [activeRecap, setActiveRecap] = useState<MeetingRecap | null>(null);
@@ -48,6 +50,26 @@ export function DashboardPage() {
   const chat = useTeamChat();
   const recaps = useTeamRecaps();
   const meetings = useTeamMeetings();
+
+  const meetingQuery = searchParams.get("meeting");
+
+  useEffect(() => {
+    if (!meetingQuery || !team?.id) return;
+    void meetings.openMeetingById(meetingQuery).then((opened) => {
+      if (opened) {
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete("meeting");
+            return next;
+          },
+          { replace: true }
+        );
+      }
+    });
+    // Intentionally only when the query / team changes — not on every meetings identity change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open once per ?meeting=
+  }, [meetingQuery, team?.id]);
 
   if (!user) {
     return null;

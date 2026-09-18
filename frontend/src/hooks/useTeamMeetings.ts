@@ -1,5 +1,8 @@
 /**
  * Team Jitsi meetings: create rooms, list, end, Whisper, recap.
+ *
+ * Active meeting is stored in sessionStorage so leaving for WhatsApp / refresh
+ * does not wipe the host's open room (they can rejoin from Meetings or auto-restore).
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -15,11 +18,33 @@ function formatError(err: unknown, fallback: string): string {
   return fallback;
 }
 
+function activeMeetingKey(teamId: string): string {
+  return `clarity:active-meeting:${teamId}`;
+}
+
+function readStoredMeetingId(teamId: string): string | null {
+  try {
+    return sessionStorage.getItem(activeMeetingKey(teamId));
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredMeetingId(teamId: string, meetingId: string | null): void {
+  try {
+    const key = activeMeetingKey(teamId);
+    if (meetingId) sessionStorage.setItem(key, meetingId);
+    else sessionStorage.removeItem(key);
+  } catch {
+    /* private mode / blocked storage */
+  }
+}
+
 export function useTeamMeetings() {
   const { isBypassMode } = useAuth();
   const { team } = useWorkspace();
   const [meetings, setMeetings] = useState<TeamMeeting[]>([]);
-  const [activeMeeting, setActiveMeeting] = useState<TeamMeeting | null>(null);
+  const [activeMeeting, setActiveMeetingState] = useState<TeamMeeting | null>(null);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
@@ -27,6 +52,16 @@ export function useTeamMeetings() {
 
   const teamId = team?.id ?? null;
   const live = isRealAuthPathReady() || !isBypassMode;
+
+  const setActiveMeeting = useCallback(
+    (meeting: TeamMeeting | null) => {
+      setActiveMeetingState(meeting);
+      if (teamId) {
+        writeStoredMeetingId(teamId, meeting && meeting.status !== "ended" ? meeting.id : null);
+      }
+    },
+    [teamId]
+  );
 
   const refresh = useCallback(async () => {
     if (!teamId || !live) {
@@ -38,6 +73,18 @@ export function useTeamMeetings() {
     try {
       const next = await api.meetings.list(teamId);
       setMeetings(next);
+
+      const savedId = readStoredMeetingId(teamId);
+      if (savedId) {
+        const saved =
+          next.find((m) => m.id === savedId && m.status !== "ended") ?? null;
+        if (saved) {
+          setActiveMeetingState(saved);
+        } else {
+          writeStoredMeetingId(teamId, null);
+          setActiveMeetingState((prev) => (prev?.id === savedId ? null : prev));
+        }
+      }
     } catch (err) {
       setMeetings([]);
       setError(formatError(err, "Could not load meetings"));
@@ -68,7 +115,7 @@ export function useTeamMeetings() {
         setCreating(false);
       }
     },
-    [teamId]
+    [teamId, setActiveMeeting]
   );
 
   const endMeeting = useCallback(
@@ -76,10 +123,34 @@ export function useTeamMeetings() {
       if (!teamId) throw new Error("No active team");
       const ended = await api.meetings.end(teamId, meetingId);
       setMeetings((prev) => prev.map((m) => (m.id === ended.id ? ended : m)));
-      setActiveMeeting((prev) => (prev?.id === ended.id ? ended : prev));
+      setActiveMeetingState((prev) => (prev?.id === ended.id ? ended : prev));
+      writeStoredMeetingId(teamId, null);
       return ended;
     },
     [teamId]
+  );
+
+  const openMeetingById = useCallback(
+    async (meetingId: string) => {
+      if (!teamId) return null;
+      const fromList = meetings.find((m) => m.id === meetingId);
+      if (fromList) {
+        setActiveMeeting(fromList);
+        return fromList;
+      }
+      try {
+        const meeting = await api.meetings.get(teamId, meetingId);
+        setMeetings((prev) =>
+          prev.some((m) => m.id === meeting.id) ? prev : [meeting, ...prev]
+        );
+        setActiveMeeting(meeting);
+        return meeting;
+      } catch (err) {
+        setError(formatError(err, "Could not open meeting"));
+        return null;
+      }
+    },
+    [teamId, meetings, setActiveMeeting]
   );
 
   const transcribe = useCallback(
@@ -112,6 +183,7 @@ export function useTeamMeetings() {
     meetings,
     activeMeeting,
     setActiveMeeting,
+    openMeetingById,
     loading,
     creating,
     transcribing,

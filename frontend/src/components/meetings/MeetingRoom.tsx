@@ -98,7 +98,7 @@ export function MeetingRoom({
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" variant="secondary" size="sm" onClick={() => void copyLink()}>
               <Copy className="size-3.5" aria-hidden />
-              {copied ? "Copied" : "Copy link"}
+              {copied ? "Copied Jitsi link" : "Copy Jitsi link"}
             </Button>
             <a
               href={meeting.meeting_url}
@@ -151,9 +151,9 @@ export function MeetingRoom({
               After the call → Whisper → AI recap
             </h3>
             <p className="text-[11px] leading-5 text-muted-light">
-              Public Jitsi does not push recordings into Clarity automatically.
-              Upload a short audio/video clip (or paste notes) to transcribe with
-              Whisper, then draft the recap.
+              Share the <strong className="font-medium text-text-body">Jitsi link</strong> in
+              WhatsApp so guests can join the call. Your Clarity room stays open —
+              if this tab refreshes, reopen it from Meetings (live calls are listed there).
             </p>
 
             <input
