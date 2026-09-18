@@ -40,8 +40,9 @@ def role_at_least(actor_role: Role, required_role: Role) -> bool:
 
 
 class TaskStatus(str, Enum):
-    """Kanban column statuses for team tasks."""
+    """Kanban column statuses for team tasks (Jira-style board)."""
 
+    BACKLOG = "backlog"
     TODO = "todo"
     IN_PROGRESS = "in_progress"
     DONE = "done"

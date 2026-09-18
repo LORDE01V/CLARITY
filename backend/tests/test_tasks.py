@@ -40,7 +40,7 @@ async def test_member_can_create_task(
 
     assert task.team_id == team.id
     assert task.title == "Ship Tasks API"
-    assert task.status == TaskStatus.TODO
+    assert task.status == TaskStatus.BACKLOG
     assert task.position == 0
     assert task.assignee_id is None
     assert task.due_date is None
@@ -227,7 +227,7 @@ async def test_create_task_api_endpoint(client, seeded_org, owner_user):
     assert response.status_code == 201
     data = response.json()
     assert data["title"] == "API task"
-    assert data["status"] == "todo"
+    assert data["status"] == "backlog"
     assert data["team_id"] == str(team.id)
 
 

@@ -13,7 +13,7 @@ class TaskCreate(BaseModel):
 
     title: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=5000)
-    status: TaskStatus = TaskStatus.TODO
+    status: TaskStatus = TaskStatus.BACKLOG
     assignee_id: UUID | None = None
     due_date: date | None = None
     position: int | None = Field(default=None, ge=0)
