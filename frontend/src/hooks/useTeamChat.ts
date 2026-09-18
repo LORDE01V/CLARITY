@@ -62,11 +62,12 @@ export function useTeamChat() {
   const pollBusy = useRef(false);
 
   const teamId = team?.id ?? null;
-  const userId = user?.id ?? "demo-user";
-  // Live Supabase path never uses in-memory demo chat.
+  const userId = user?.id ?? "";
+  // Never inject fixture chat when the API is available.
   const useDemoChat = isBypassMode && !isRealAuthPathReady();
 
-  const refreshChannels = useCallback(async () => {
+  const refreshChannels = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = Boolean(opts?.silent);
     if (!teamId) {
       setChannels([]);
       setMembers([]);
@@ -76,8 +77,10 @@ export function useTeamChat() {
       return;
     }
 
-    setLoadingChannels(true);
-    setError(null);
+    if (!silent) {
+      setLoadingChannels(true);
+      setError(null);
+    }
     try {
       if (useDemoChat) {
         const demoUser = user ?? {
@@ -95,12 +98,15 @@ export function useTeamChat() {
         setChannels(next);
         setMembers(roster);
       }
+      if (!silent) setError(null);
     } catch (err) {
-      setChannels([]);
-      setMembers([]);
-      setError(formatError(err, "Could not load conversations"));
+      if (!silent) {
+        setChannels([]);
+        setMembers([]);
+        setError(formatError(err, "Could not load conversations"));
+      }
     } finally {
-      setLoadingChannels(false);
+      if (!silent) setLoadingChannels(false);
     }
   }, [teamId, useDemoChat, userId, user]);
 
@@ -112,10 +118,13 @@ export function useTeamChat() {
   }, [channels]);
 
   const loadMessages = useCallback(
-    async (channelId: string) => {
+    async (channelId: string, opts?: { silent?: boolean }) => {
       if (!teamId) return;
-      setLoadingMessages(true);
-      setError(null);
+      const silent = Boolean(opts?.silent);
+      if (!silent) {
+        setLoadingMessages(true);
+        setError(null);
+      }
       try {
         const page = useDemoChat
           ? listDemoMessages(channelId, { limit: 50 })
@@ -124,12 +133,15 @@ export function useTeamChat() {
         setHasMore(page.has_more);
         latestCreatedAt.current =
           page.messages[page.messages.length - 1]?.created_at ?? null;
+        if (!silent) setError(null);
       } catch (err) {
-        setMessages([]);
-        setHasMore(false);
-        setError(formatError(err, "Could not load messages"));
+        if (!silent) {
+          setMessages([]);
+          setHasMore(false);
+          setError(formatError(err, "Could not load messages"));
+        }
       } finally {
-        setLoadingMessages(false);
+        if (!silent) setLoadingMessages(false);
       }
     },
     [teamId, useDemoChat]

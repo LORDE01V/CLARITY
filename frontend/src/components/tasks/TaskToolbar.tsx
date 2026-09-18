@@ -15,7 +15,6 @@ interface TaskToolbarProps {
   currentUserId?: string | null;
   total: number;
   visible: number;
-  isDemo: boolean;
 }
 
 const FILTERS: { id: BoardFilter; label: string }[] = [
@@ -35,7 +34,6 @@ export function TaskToolbar({
   people,
   total,
   visible,
-  isDemo,
 }: TaskToolbarProps) {
   return (
     <div className="flex flex-col gap-3">
@@ -77,11 +75,6 @@ export function TaskToolbar({
               <span className="font-semibold text-card-foreground">{visible}</span> of{" "}
               {total}
             </>
-          )}
-          {isDemo && (
-            <span className="ml-2 rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-              Offline board
-            </span>
           )}
         </p>
       </div>

@@ -79,6 +79,7 @@ export function TaskColumn({
             <span
               className={cn(
                 "size-2 shrink-0 rounded-full",
+                status === "backlog" && "bg-muted-light/70",
                 status === "todo" && "bg-muted-light",
                 status === "in_progress" && "bg-primary",
                 status === "done" && "bg-[#5a9e74]"

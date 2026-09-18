@@ -332,18 +332,28 @@ export function TaskDetailDrawer({
                 onClick={() => void onMove(next)}
                 className="gap-1"
               >
-                {next === "in_progress" ? "Start" : "Complete"}
+                {next === "todo"
+                  ? "Ready"
+                  : next === "in_progress"
+                    ? "Start"
+                    : "Complete"}
                 <ArrowRight className="size-3.5" aria-hidden />
               </Button>
             )}
-            {task.status !== "todo" && (
+            {task.status !== "backlog" && (
               <Button
                 type="button"
                 variant="ghost"
                 disabled={busy || saving}
-                onClick={() =>
-                  void onMove(task.status === "done" ? "in_progress" : "todo")
-                }
+                onClick={() => {
+                  const prev =
+                    task.status === "done"
+                      ? "in_progress"
+                      : task.status === "in_progress"
+                        ? "todo"
+                        : "backlog";
+                  void onMove(prev);
+                }}
                 className="gap-1"
               >
                 <ArrowLeft className="size-3.5" aria-hidden />

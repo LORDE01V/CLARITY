@@ -279,8 +279,7 @@ export function ChatPanel({
             Chat
           </h1>
           <p className="mt-1 max-w-xl text-[13px] leading-relaxed text-muted-light">
-            Channels, direct messages, and groups for the active workspace
-            {isDemo ? " · demo mode" : ""}.
+            Channels, direct messages, and groups for the active workspace.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -529,11 +528,9 @@ export function ChatPanel({
                 </p>
               )}
             </div>
-            {!isDemo && (
-              <span className="shrink-0 text-[10px] font-medium text-muted-light">
-                Updates every few seconds
-              </span>
-            )}
+            <span className="shrink-0 text-[10px] font-medium text-muted-light">
+              Live updates in the background
+            </span>
           </div>
 
           <div

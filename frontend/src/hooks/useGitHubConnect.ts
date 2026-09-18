@@ -23,14 +23,15 @@ export function useGitHubConnect() {
 
   const teamId = team?.id;
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (opts?: { silent?: boolean }) => {
     if (!hasApiBaseUrl()) {
       setStatus(null);
       setError(null);
       return;
     }
 
-    setLoading(true);
+    const silent = Boolean(opts?.silent);
+    if (!silent) setLoading(true);
     try {
       const next = await api.github.status(false, teamId);
       setStatus(next);
@@ -39,14 +40,14 @@ export function useGitHubConnect() {
         setWaitingForInstall(false);
       }
     } catch {
-      setError("Could not load GitHub connection status.");
+      if (!silent) setError("Could not load GitHub connection status.");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [teamId]);
 
   useEffect(() => {
-    void refresh();
+    void refresh({ silent: false });
   }, [refresh]);
 
   useEffect(() => {
@@ -59,7 +60,7 @@ export function useGitHubConnect() {
     }
 
     pollRef.current = window.setInterval(() => {
-      void refresh();
+      void refresh({ silent: true });
     }, STATUS_POLL_MS);
 
     return () => {

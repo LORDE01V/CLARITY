@@ -36,7 +36,6 @@ interface TasksBoardProps {
   people: TaskPerson[];
   loading: boolean;
   error: string | null;
-  isDemo: boolean;
   hasTeam: boolean;
   currentUser?: { id: string; full_name?: string | null; email?: string } | null;
   onCreate: (input: TaskCreateInput) => Promise<void>;
@@ -51,7 +50,6 @@ export function TasksBoard({
   people,
   loading,
   error,
-  isDemo,
   hasTeam,
   currentUser,
   onCreate,
@@ -104,6 +102,7 @@ export function TasksBoard({
 
   const filteredByStatus = useMemo(() => {
     const map: Record<TaskStatus, Task[]> = {
+      backlog: [],
       todo: [],
       in_progress: [],
       done: [],
@@ -154,8 +153,8 @@ export function TasksBoard({
           Tasks
         </h1>
         <p className="max-w-2xl text-[13px] leading-6 text-muted-foreground">
-          Own the work that meetings decide. Set story points for effort, link
-          bugs to a parent task, and filter by real teammates on this board.
+          Own the work that meetings decide. Start in Backlog, move to Ready
+          when scheduled, set story points, and link bugs to a parent task.
         </p>
       </header>
 
@@ -171,7 +170,6 @@ export function TasksBoard({
           currentUserId={currentUser?.id}
           total={tasks.length}
           visible={filtered.length}
-          isDemo={isDemo}
         />
 
         {surfaceError && (
@@ -194,7 +192,7 @@ export function TasksBoard({
         )}
 
         {loading ? (
-          <div className="mt-5 grid gap-4 lg:grid-cols-3" aria-busy="true" aria-live="polite">
+          <div className="mt-5 grid gap-4 xl:grid-cols-4" aria-busy="true" aria-live="polite">
             {COLUMN_META.map((column) => (
               <div key={column.status} className="flex flex-col gap-3">
                 <div className="h-4 w-24 animate-pulse rounded bg-secondary" />
@@ -209,7 +207,7 @@ export function TasksBoard({
           <div
             className={cn(
               "clarity-task-board mt-5 flex gap-4 overflow-x-auto pb-2",
-              "lg:grid lg:grid-cols-3 lg:overflow-visible lg:pb-0"
+              "xl:grid xl:grid-cols-4 xl:overflow-visible xl:pb-0"
             )}
           >
             {COLUMN_META.map((column) => (
@@ -246,8 +244,8 @@ export function TasksBoard({
               Board is clear
             </p>
             <p className="mx-auto mt-2 max-w-sm text-[13px] leading-6 text-muted-foreground">
-              Use Create in any column to capture the next action. Open a card to
-              set story points or link a bug to its parent task.
+              Create in Backlog to capture upcoming work, then move cards into
+              Ready and Active. Open a card for story points or parent links.
             </p>
           </div>
         )}

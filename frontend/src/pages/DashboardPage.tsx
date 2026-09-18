@@ -40,7 +40,6 @@ export function DashboardPage() {
     loading: tasksLoading,
     error: tasksError,
     openCount,
-    isDemo,
     hasTeam,
     createTask,
     updateTask,
@@ -111,7 +110,6 @@ export function DashboardPage() {
               people={people}
               loading={tasksLoading}
               error={tasksError}
-              isDemo={isDemo}
               hasTeam={hasTeam}
               currentUser={user}
               onCreate={async (input) => {

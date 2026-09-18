@@ -1,9 +1,9 @@
 /**
- * Loads GitHub activity from the API when possible.
- * Never injects fake demo rows — empty means waiting for webhooks.
+ * Loads GitHub activity from the API.
+ * Background polls merge quietly — no loading flicker.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Circle, GitCommitHorizontal, GitPullRequest, MessageSquare, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import type { ActivityItem } from "@/data/dashboard";
@@ -63,49 +63,74 @@ export function useGitHubActivity(limit = 20, enabled = true) {
   const [isLive, setIsLive] = useState(false);
   const [liveCount, setLiveCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const hasLoaded = useRef(false);
+  const pollBusy = useRef(false);
 
-  const refresh = useCallback(async () => {
-    if (!enabled) {
-      setLoading(false);
-      return;
-    }
+  const refresh = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      const silent = Boolean(opts?.silent);
 
-    if (!hasApiBaseUrl()) {
-      setItems([]);
-      setRaw([]);
-      setIsLive(false);
-      setLiveCount(0);
-      setError("API URL is not configured.");
-      setLoading(false);
-      return;
-    }
+      if (!enabled) {
+        setLoading(false);
+        return;
+      }
 
-    setLoading(true);
-    try {
-      const events = await api.github.activity(limit);
-      setRaw(events);
-      setLiveCount(events.length);
-      setItems(events.map(mapGitHubActivity));
-      setIsLive(events.length > 0);
-      setError(null);
-    } catch {
-      setItems([]);
-      setRaw([]);
-      setIsLive(false);
-      setLiveCount(0);
-      setError("Could not load GitHub activity from the API.");
-    } finally {
-      setLoading(false);
-    }
-  }, [enabled, limit]);
+      if (!hasApiBaseUrl()) {
+        setItems([]);
+        setRaw([]);
+        setIsLive(false);
+        setLiveCount(0);
+        setError("API URL is not configured.");
+        setLoading(false);
+        return;
+      }
+
+      if (!silent && !hasLoaded.current) {
+        setLoading(true);
+      }
+
+      try {
+        const events = await api.github.activity(limit);
+        setRaw(events);
+        setLiveCount(events.length);
+        setItems(events.map(mapGitHubActivity));
+        setIsLive(events.length > 0);
+        setError(null);
+        hasLoaded.current = true;
+      } catch {
+        if (!silent || !hasLoaded.current) {
+          setItems([]);
+          setRaw([]);
+          setIsLive(false);
+          setLiveCount(0);
+          setError("Could not load GitHub activity from the API.");
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [enabled, limit]
+  );
 
   useEffect(() => {
-    void refresh();
+    hasLoaded.current = false;
+    void refresh({ silent: false });
   }, [refresh]);
 
   useEffect(() => {
     if (!enabled || !hasApiBaseUrl()) return;
-    const id = window.setInterval(() => void refresh(), POLL_MS);
+
+    const tick = async () => {
+      if (pollBusy.current) return;
+      pollBusy.current = true;
+      try {
+        await refresh({ silent: true });
+      } finally {
+        pollBusy.current = false;
+      }
+    };
+
+    const id = window.setInterval(() => void tick(), POLL_MS);
     return () => window.clearInterval(id);
   }, [enabled, refresh]);
 

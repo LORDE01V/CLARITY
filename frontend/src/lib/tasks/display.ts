@@ -18,10 +18,16 @@ export const COLUMN_META: {
   empty: string;
 }[] = [
   {
+    status: "backlog",
+    title: "Backlog",
+    hint: "Ideas and unscheduled work",
+    empty: "Backlog is empty. Capture work here before sprinting it.",
+  },
+  {
     status: "todo",
     title: "Ready",
     hint: "Queued for ownership",
-    empty: "Nothing waiting. Capture the next decision here.",
+    empty: "Nothing waiting. Pull from backlog when ready.",
   },
   {
     status: "in_progress",
@@ -31,13 +37,14 @@ export const COLUMN_META: {
   },
   {
     status: "done",
-    title: "Closed",
+    title: "Done",
     hint: "Accounted for",
     empty: "Closed work lands here with its trail intact.",
   },
 ];
 
 export const NEXT_STATUS: Partial<Record<TaskStatus, TaskStatus>> = {
+  backlog: "todo",
   todo: "in_progress",
   in_progress: "done",
 };

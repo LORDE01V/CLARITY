@@ -22,9 +22,10 @@ interface TaskCardProps {
 }
 
 const STATUS_LABEL: Record<TaskStatus, string> = {
+  backlog: "Backlog",
   todo: "Ready",
   in_progress: "Active",
-  done: "Closed",
+  done: "Done",
 };
 
 export function TaskCard({
@@ -71,9 +72,10 @@ export function TaskCard({
             <span
               className={cn(
                 "rounded-md px-1.5 py-0.5 text-[10px] font-semibold",
-                task.status === "todo" && "bg-secondary text-text-subtle",
-                task.status === "in_progress" && "bg-accent text-primary",
-                task.status === "done" && "bg-secondary text-muted-foreground"
+              task.status === "backlog" && "bg-secondary text-muted-foreground",
+              task.status === "todo" && "bg-secondary text-text-subtle",
+              task.status === "in_progress" && "bg-accent text-primary",
+              task.status === "done" && "bg-secondary text-muted-foreground"
               )}
             >
               {STATUS_LABEL[task.status]}

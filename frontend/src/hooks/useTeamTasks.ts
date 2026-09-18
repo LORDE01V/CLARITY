@@ -1,19 +1,13 @@
 /**
- * Loads and mutates tasks for the active team, plus the live member roster
- * used for assignee filters and ownership.
+ * Loads and mutates tasks for the active team, plus the live member roster.
+ * Background polls merge quietly — no loading flicker (Jira-style).
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useWorkspace } from "@/components/WorkspaceProvider";
 import { api, ApiError } from "@/lib/api";
-import {
-  createDemoTask,
-  deleteDemoTask,
-  listDemoTasks,
-  moveDemoTask,
-  updateDemoTask,
-} from "@/lib/tasks/demo";
+import { hasApiBaseUrl } from "@/lib/auth/config";
 import { membersToPeople, type TaskPerson } from "@/lib/tasks/display";
 import type {
   Task,
@@ -24,6 +18,8 @@ import type {
   TeamMemberWithUser,
 } from "@/types";
 
+const POLL_MS = 8000;
+
 function formatError(err: unknown, fallback: string): string {
   if (err instanceof ApiError) {
     return typeof err.message === "string" ? err.message : fallback;
@@ -32,13 +28,37 @@ function formatError(err: unknown, fallback: string): string {
   return fallback;
 }
 
+function sameTaskSnapshot(a: Task[], b: Task[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    const left = a[i];
+    const right = b[i];
+    if (
+      left.id !== right.id ||
+      left.updated_at !== right.updated_at ||
+      left.status !== right.status ||
+      left.position !== right.position ||
+      left.title !== right.title ||
+      left.assignee_id !== right.assignee_id ||
+      left.story_points !== right.story_points ||
+      left.parent_task_id !== right.parent_task_id ||
+      left.due_date !== right.due_date
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export function useTeamTasks() {
-  const { user, isBypassMode } = useAuth();
+  const { user } = useAuth();
   const { team } = useWorkspace();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [members, setMembers] = useState<TeamMemberWithUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasLoaded = useRef(false);
+  const pollBusy = useRef(false);
 
   const teamId = team?.id ?? null;
 
@@ -47,75 +67,104 @@ export function useTeamTasks() {
     [members, user]
   );
 
-  const refresh = useCallback(async () => {
-    if (!teamId) {
-      setTasks([]);
-      setMembers([]);
-      setLoading(false);
-      setError(null);
-      return;
-    }
+  const refresh = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      const silent = Boolean(opts?.silent);
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      if (isBypassMode) {
-        setTasks(listDemoTasks(teamId));
+      if (!teamId) {
+        setTasks([]);
         setMembers([]);
-      } else {
+        setLoading(false);
+        setError(null);
+        hasLoaded.current = false;
+        return;
+      }
+
+      if (!hasApiBaseUrl()) {
+        setTasks([]);
+        setMembers([]);
+        setError("API URL is not configured.");
+        setLoading(false);
+        return;
+      }
+
+      if (!silent && !hasLoaded.current) {
+        setLoading(true);
+      }
+
+      try {
         const [taskList, memberList] = await Promise.all([
           api.tasks.list(teamId),
           api.teams.listMembers(teamId),
         ]);
-        setTasks(taskList);
+        setTasks((prev) => (sameTaskSnapshot(prev, taskList) ? prev : taskList));
         setMembers(memberList);
+        setError(null);
+        hasLoaded.current = true;
+      } catch (err) {
+        if (!silent || !hasLoaded.current) {
+          setTasks([]);
+          setMembers([]);
+          setError(formatError(err, "Could not load tasks"));
+        }
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setTasks([]);
-      setMembers([]);
-      setError(formatError(err, "Could not load tasks"));
-    } finally {
-      setLoading(false);
-    }
-  }, [teamId, isBypassMode]);
+    },
+    [teamId]
+  );
 
   useEffect(() => {
-    void refresh();
+    hasLoaded.current = false;
+    void refresh({ silent: false });
   }, [refresh]);
+
+  useEffect(() => {
+    if (!teamId || !hasApiBaseUrl()) return;
+
+    const tick = async () => {
+      if (pollBusy.current) return;
+      pollBusy.current = true;
+      try {
+        await refresh({ silent: true });
+      } finally {
+        pollBusy.current = false;
+      }
+    };
+
+    const id = window.setInterval(() => void tick(), POLL_MS);
+    return () => window.clearInterval(id);
+  }, [teamId, refresh]);
 
   const createTask = useCallback(
     async (payload: TaskCreate) => {
       if (!teamId) throw new Error("No active team");
-      const created = isBypassMode
-        ? createDemoTask(teamId, payload)
-        : await api.tasks.create(teamId, payload);
+      const created = await api.tasks.create(teamId, {
+        ...payload,
+        status: payload.status ?? "backlog",
+      });
       setTasks((prev) => [...prev, created].sort((a, b) => a.position - b.position));
       return created;
     },
-    [teamId, isBypassMode]
+    [teamId]
   );
 
   const updateTask = useCallback(
     async (taskId: string, payload: TaskUpdate) => {
       if (!teamId) throw new Error("No active team");
-      const updated = isBypassMode
-        ? updateDemoTask(taskId, payload)
-        : await api.tasks.update(teamId, taskId, payload);
+      const updated = await api.tasks.update(teamId, taskId, payload);
       setTasks((prev) =>
         prev.map((task) => (task.id === taskId ? updated : task))
       );
       return updated;
     },
-    [teamId, isBypassMode]
+    [teamId]
   );
 
   const moveTask = useCallback(
     async (taskId: string, payload: TaskStatusUpdate) => {
       if (!teamId) throw new Error("No active team");
-      const updated = isBypassMode
-        ? moveDemoTask(taskId, payload.status, payload.position)
-        : await api.tasks.move(teamId, taskId, payload);
+      const updated = await api.tasks.move(teamId, taskId, payload);
       setTasks((prev) =>
         prev
           .map((task) => (task.id === taskId ? updated : task))
@@ -123,17 +172,13 @@ export function useTeamTasks() {
       );
       return updated;
     },
-    [teamId, isBypassMode]
+    [teamId]
   );
 
   const removeTask = useCallback(
     async (taskId: string) => {
       if (!teamId) throw new Error("No active team");
-      if (isBypassMode) {
-        deleteDemoTask(taskId);
-      } else {
-        await api.tasks.delete(teamId, taskId);
-      }
+      await api.tasks.delete(teamId, taskId);
       setTasks((prev) =>
         prev
           .filter((task) => task.id !== taskId)
@@ -144,7 +189,7 @@ export function useTeamTasks() {
           )
       );
     },
-    [teamId, isBypassMode]
+    [teamId]
   );
 
   const clearError = useCallback(() => setError(null), []);
@@ -169,7 +214,7 @@ export function useTeamTasks() {
     loading,
     error,
     openCount,
-    isDemo: isBypassMode,
+    isDemo: false,
     hasTeam: Boolean(teamId),
     refresh,
     createTask,

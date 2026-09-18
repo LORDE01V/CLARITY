@@ -1,6 +1,6 @@
 /** Task types matching backend app.models.task */
 
-export type TaskStatus = "todo" | "in_progress" | "done";
+export type TaskStatus = "backlog" | "todo" | "in_progress" | "done";
 
 export interface Task {
   id: string;

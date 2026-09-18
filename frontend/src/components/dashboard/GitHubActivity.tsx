@@ -127,7 +127,7 @@ export function GitHubActivity({
           <p className="mt-1 text-[10px] text-muted-light">{error}</p>
         )}
         {loading && (
-          <p className="mt-1 text-[10px] text-muted-light">Refreshing…</p>
+          <p className="mt-1 text-[10px] text-muted-light">Loading…</p>
         )}
       </div>
       <div className="flex flex-col">

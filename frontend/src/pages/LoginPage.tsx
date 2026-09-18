@@ -6,7 +6,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { Button } from "@/components/ui/Button";
 
 export function LoginPage() {
-  const { login, enterDemo, user, isBypassMode } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const nextPath = searchParams.get("next") || "/";
@@ -35,11 +35,6 @@ export function LoginPage() {
     } finally {
       setSubmitting(false);
     }
-  }
-
-  function handleDemoEntry() {
-    enterDemo();
-    navigate("/");
   }
 
   return (
@@ -109,18 +104,6 @@ export function LoginPage() {
           {submitting ? "Signing in..." : "Sign in"}
         </Button>
       </form>
-
-      {isBypassMode && (
-        <Button
-          type="button"
-          variant="secondary"
-          size="lg"
-          onClick={handleDemoEntry}
-          className="mt-3"
-        >
-          Enter demo workspace
-        </Button>
-      )}
     </AuthLayout>
   );
 }
