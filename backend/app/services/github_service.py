@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 _HANDLED_EVENTS = frozenset(
     {
         "ping",
+        "push",
         "issues",
         "issue_comment",
         "pull_request",
@@ -543,6 +544,25 @@ class GitHubService:
             actor = (pr.get("user") or {}).get("login") or actor
             if action == "closed" and pr.get("merged"):
                 action = "merged"
+        elif event_type == "push":
+            commits = payload.get("commits") if isinstance(payload.get("commits"), list) else []
+            ref = str(payload.get("ref") or "")
+            branch = ref.split("/")[-1] if ref else "branch"
+            count = len(commits)
+            head = ""
+            if commits and isinstance(commits[-1], dict):
+                head = str(commits[-1].get("message") or "").split("\n")[0]
+            title = f"Pushed {count} commit{'s' if count != 1 else ''} to {branch}"
+            body = head or f"{repo_full_name or 'repo'}@{branch}"
+            compare = payload.get("compare")
+            head_commit = payload.get("head_commit")
+            if isinstance(compare, str) and compare:
+                html_url = compare
+            elif isinstance(head_commit, dict):
+                html_url = head_commit.get("url")
+            pusher = payload.get("pusher") or {}
+            if isinstance(pusher, dict) and pusher.get("name"):
+                actor = str(pusher["name"])
         elif event_type == "installation":
             account = (installation.get("account") or {}) if isinstance(
                 installation, dict

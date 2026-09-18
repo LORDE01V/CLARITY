@@ -175,6 +175,42 @@ def test_webhook_ping_ingested(github_client, github_events):
     assert "Design is not just" in (items[0]["body_preview"] or "")
 
 
+def test_push_event_appears_in_activity(github_client):
+    payload = {
+        "ref": "refs/heads/main",
+        "compare": "https://github.com/acme/clarity/compare/abc...def",
+        "installation": {"id": 999001},
+        "repository": {"full_name": "acme/clarity"},
+        "sender": {"login": "lorde"},
+        "pusher": {"name": "lorde"},
+        "commits": [
+            {"message": "Wire live GitHub push into Clarity\n\nMore detail", "id": "abc"},
+            {"message": "Polish activity empty state", "id": "def"},
+        ],
+        "head_commit": {"url": "https://github.com/acme/clarity/commit/def"},
+    }
+    body = json.dumps(payload).encode("utf-8")
+    response = github_client.post(
+        "/api/v1/github/webhooks",
+        content=body,
+        headers={
+            "Content-Type": "application/json",
+            "X-GitHub-Event": "push",
+            "X-GitHub-Delivery": "delivery-push-1",
+            "X-Hub-Signature-256": _sign(body),
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["event"] == "push"
+
+    listed = github_client.get("/api/v1/github/activity")
+    assert listed.status_code == 200
+    items = listed.json()
+    assert items[0]["event_type"] == "push"
+    assert "Pushed 2 commits to main" in items[0]["title"]
+    assert "Polish activity empty state" in (items[0]["body_preview"] or "")
+
+
 def test_pull_request_and_issues_appear_in_activity(github_client):
     pr_payload = {
         "action": "opened",
