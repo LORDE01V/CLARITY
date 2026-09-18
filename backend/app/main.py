@@ -23,6 +23,7 @@ from app.core.exceptions import (
 from app.routers import (
     auth,
     chat,
+    docs,
     github,
     invites,
     meetings,
@@ -77,6 +78,7 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(invites.router, prefix="/api/v1")
     app.include_router(tasks.router, prefix="/api/v1")
     app.include_router(timesheets.router, prefix="/api/v1")
+    app.include_router(docs.router, prefix="/api/v1")
     app.include_router(chat.router, prefix="/api/v1")
     app.include_router(meetings.router, prefix="/api/v1")
     app.include_router(recaps.router, prefix="/api/v1")

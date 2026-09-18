@@ -2,6 +2,7 @@
 
 from app.core.config import get_settings
 from app.db.repositories.chat_repository import SupabaseChatRepository
+from app.db.repositories.document_repository import SupabaseDocumentRepository
 from app.db.repositories.github_event_repository import (
     SupabaseGitHubEventRepository,
     get_shared_github_event_store,
@@ -21,6 +22,7 @@ from app.db.repositories.timesheet_repository import SupabaseTimeEntryRepository
 from app.db.supabase import get_supabase_client
 from app.services.auth_service import AuthService
 from app.services.chat_service import ChatService
+from app.services.document_service import DocumentService
 from app.services.github_service import GitHubService
 from app.services.invite_service import InviteService
 from app.services.openai_recap import OpenAIRecapClient
@@ -92,6 +94,15 @@ def get_timesheet_service() -> TimesheetService:
     return TimesheetService(
         time_repo=SupabaseTimeEntryRepository(client),
         task_repo=SupabaseTaskRepository(client),
+        team_service=get_team_service(),
+    )
+
+
+def get_document_service() -> DocumentService:
+    """Provide DocumentService with Supabase repositories."""
+    client = get_supabase_client()
+    return DocumentService(
+        document_repo=SupabaseDocumentRepository(client),
         team_service=get_team_service(),
     )
 
