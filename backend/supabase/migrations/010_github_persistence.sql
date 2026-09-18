@@ -1,4 +1,6 @@
 -- Persist GitHub App installations + webhook activity (Render-safe)
+-- Backend uses the service role key (bypasses RLS). No anon/authenticated
+-- policies on purpose — clients must never read these tables directly.
 
 CREATE TABLE IF NOT EXISTS github_installations (
     installation_id      TEXT PRIMARY KEY,
@@ -52,3 +54,7 @@ CREATE TABLE IF NOT EXISTS github_connect_states (
 
 CREATE INDEX IF NOT EXISTS idx_github_connect_states_created_at
     ON github_connect_states(created_at);
+
+ALTER TABLE github_installations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE github_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE github_connect_states ENABLE ROW LEVEL SECURITY;
