@@ -1,7 +1,11 @@
-import { useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { Copy, ExternalLink, Mic, Square, Video, X } from "lucide-react";
 import type { MeetingRecap, TeamMeeting } from "@/types";
 import { Button } from "@/components/ui/Button";
+import {
+  formatElapsed,
+  useMeetingRecorder,
+} from "@/hooks/useMeetingRecorder";
 
 interface MeetingRoomProps {
   meeting: TeamMeeting;
@@ -29,8 +33,18 @@ export function MeetingRoom({
   const fileRef = useRef<HTMLInputElement>(null);
   const [transcript, setTranscript] = useState("");
   const [busy, setBusy] = useState(false);
+  const [phase, setPhase] = useState<
+    "live" | "finishing" | "transcribing" | "recapping"
+  >("live");
   const [localError, setLocalError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const finishingRef = useRef(false);
+
+  const recorder = useMeetingRecorder(meeting.status !== "ended");
+
+  useEffect(() => {
+    if (recorder.error) setLocalError(recorder.error);
+  }, [recorder.error]);
 
   async function copyLink() {
     try {
@@ -45,11 +59,64 @@ export function MeetingRoom({
   async function handleFile(file: File | null) {
     if (!file) return;
     setLocalError(null);
+    setPhase("transcribing");
     try {
       const result = await onTranscribe(file);
       setTranscript(result.transcript);
+      setPhase("live");
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : "Transcription failed");
+      setPhase("live");
+    }
+  }
+
+  async function finishMeeting(generateRecap: boolean) {
+    if (finishingRef.current) return;
+    finishingRef.current = true;
+    setLocalError(null);
+    setPhase("finishing");
+
+    try {
+      const recording = await recorder.stop();
+      let text = transcript.trim();
+
+      if (recording && recording.size > 0) {
+        setPhase("transcribing");
+        const result = await onTranscribe(recording);
+        text = result.transcript.trim();
+        setTranscript(text);
+      }
+
+      if (generateRecap) {
+        if (text.length < 20) {
+          setLocalError(
+            "Not enough audio to build a recap. Share this tab with audio next time, or upload a file / paste notes."
+          );
+          await onEnd();
+          setPhase("live");
+          return;
+        }
+        setPhase("recapping");
+        const recap = await onCreateRecap(text);
+        await onEnd();
+        onRecapReady(recap);
+        return;
+      }
+
+      await onEnd();
+      setPhase("live");
+    } catch (err) {
+      setLocalError(
+        err instanceof Error ? err.message : "Could not finish meeting"
+      );
+      setPhase("live");
+      try {
+        await onEnd();
+      } catch {
+        /* still try to close server-side meeting */
+      }
+    } finally {
+      finishingRef.current = false;
     }
   }
 
@@ -71,6 +138,22 @@ export function MeetingRoom({
     }
   }
 
+  const recordingLive = recorder.mode === "tab" || recorder.mode === "mic";
+  const statusLabel =
+    phase === "finishing"
+      ? "Stopping recording…"
+      : phase === "transcribing" || transcribing
+        ? "Transcribing full meeting with Whisper…"
+        : phase === "recapping"
+          ? "Drafting key takeaways…"
+          : recorder.mode === "starting"
+            ? "Starting recorder — share this tab and enable audio"
+            : recorder.mode === "tab"
+              ? `Recording tab audio · ${formatElapsed(recorder.elapsedSec)}`
+              : recorder.mode === "mic"
+                ? `Recording mic · ${formatElapsed(recorder.elapsedSec)}`
+                : "Recorder idle";
+
   return (
     <div
       className="clarity-modal-overlay"
@@ -82,11 +165,17 @@ export function MeetingRoom({
       <div className="flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-[var(--radius-md)] border border-border bg-popover shadow-2xl">
         <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-primary">
+            <div className="flex flex-wrap items-center gap-2 text-primary">
               <Video className="size-4" aria-hidden />
               <span className="text-[11px] font-semibold tracking-[0.04em]">
                 Live meeting · Jitsi
               </span>
+              {recordingLive && (
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">
+                  <span className="size-1.5 animate-pulse rounded-full bg-destructive" />
+                  REC {formatElapsed(recorder.elapsedSec)}
+                </span>
+              )}
             </div>
             <h2
               id={titleId}
@@ -113,13 +202,18 @@ export function MeetingRoom({
             </a>
             <Button
               type="button"
-              variant="secondary"
+              variant="primary"
               size="sm"
-              onClick={() => void onEnd()}
-              disabled={meeting.status === "ended"}
+              onClick={() => void finishMeeting(true)}
+              disabled={
+                meeting.status === "ended" ||
+                phase !== "live" ||
+                busy ||
+                transcribing
+              }
             >
               <Square className="size-3.5" aria-hidden />
-              End
+              End &amp; transcribe
             </Button>
             <button
               type="button"
@@ -148,13 +242,41 @@ export function MeetingRoom({
             className="flex min-h-0 flex-col gap-3 overflow-auto border-t border-border p-4 lg:border-l lg:border-t-0"
           >
             <h3 className="text-[12px] font-semibold text-card-foreground">
-              After the call → Whisper → AI recap
+              Auto record → Whisper → key takeaways
             </h3>
             <p className="text-[11px] leading-5 text-muted-light">
-              Share the <strong className="font-medium text-text-body">Jitsi link</strong> in
-              WhatsApp so guests can join the call. Your Clarity room stays open —
-              if this tab refreshes, reopen it from Meetings (live calls are listed there).
+              When prompted, choose <strong className="font-medium text-text-body">this tab</strong>{" "}
+              and turn on <strong className="font-medium text-text-body">tab audio</strong>. Clarity
+              records the call, then on <strong className="font-medium text-text-body">End &amp;
+              transcribe</strong> runs Whisper and drafts takeaways automatically.
             </p>
+
+            <div className="rounded-[var(--radius-sm)] border border-border-subtle bg-row-hover/80 px-3 py-2.5">
+              <p className="text-[11px] font-medium text-card-foreground">{statusLabel}</p>
+              {recorder.mode === "starting" && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => void recorder.start()}
+                >
+                  Retry share / record
+                </Button>
+              )}
+              {(recorder.mode === "idle" || recorder.mode === "stopped") &&
+                meeting.status !== "ended" && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => void recorder.start()}
+                  >
+                    Start recording
+                  </Button>
+                )}
+            </div>
 
             <input
               ref={fileRef}
@@ -168,20 +290,20 @@ export function MeetingRoom({
               variant="secondary"
               size="sm"
               className="w-fit"
-              disabled={transcribing}
+              disabled={transcribing || phase !== "live"}
               onClick={() => fileRef.current?.click()}
             >
               <Mic className="size-3.5" aria-hidden />
-              {transcribing ? "Transcribing…" : "Upload audio for Whisper"}
+              {transcribing ? "Transcribing…" : "Upload backup audio"}
             </Button>
 
             <label className="block text-[12px] font-semibold text-card-foreground">
-              Transcript
+              Full transcript
               <textarea
                 value={transcript}
                 onChange={(e) => setTranscript(e.target.value)}
                 className="clarity-input mt-2 min-h-40 resize-y text-[12px] leading-5"
-                placeholder="Whisper output appears here, or paste notes manually."
+                placeholder="Appears automatically after End & transcribe — or paste notes."
               />
             </label>
 
@@ -189,13 +311,40 @@ export function MeetingRoom({
               <p className="text-[12px] text-destructive">{error || localError}</p>
             )}
 
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={busy || transcript.trim().length < 20}
-            >
-              {busy ? "Drafting recap…" : "Generate AI recap"}
-            </Button>
+            <div className="mt-auto flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="primary"
+                disabled={
+                  meeting.status === "ended" ||
+                  phase !== "live" ||
+                  busy ||
+                  transcribing
+                }
+                onClick={() => void finishMeeting(true)}
+              >
+                {phase === "transcribing" || transcribing
+                  ? "Transcribing…"
+                  : phase === "recapping"
+                    ? "Drafting takeaways…"
+                    : "End & transcribe"}
+              </Button>
+              <Button
+                type="submit"
+                variant="secondary"
+                disabled={busy || transcript.trim().length < 20 || phase !== "live"}
+              >
+                {busy ? "Drafting…" : "Recap from transcript"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={meeting.status === "ended" || phase !== "live"}
+                onClick={() => void finishMeeting(false)}
+              >
+                End without recap
+              </Button>
+            </div>
           </form>
         </div>
       </div>
@@ -234,7 +383,8 @@ export function StartMeetingForm({
       >
         <h2 className="text-lg font-semibold text-card-foreground">New meeting</h2>
         <p className="mt-2 text-[12px] leading-5 text-muted-light">
-          Creates a private-ish Jitsi room on meet.jit.si and embeds it in Clarity.
+          Creates a Jitsi room. Clarity will ask to share this tab with audio so the
+          full call can be transcribed when you end.
         </p>
         <label className="mt-4 block text-[12px] font-semibold text-card-foreground">
           Title
