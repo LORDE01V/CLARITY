@@ -3,35 +3,13 @@
  * Keeps presentation logic out of board components.
  */
 
-import type { Task, TaskStatus } from "@/types";
-import { DEMO_USER } from "@/lib/auth/bypass";
+import type { Task, TaskStatus, TeamMemberWithUser } from "@/types";
 
 export interface TaskPerson {
   id: string;
   name: string;
   initials: string;
 }
-
-/** Demo roster for assignee avatars when the members API is not wired yet. */
-export const DEMO_PEOPLE: TaskPerson[] = [
-  {
-    id: DEMO_USER.id,
-    name: DEMO_USER.full_name ?? "Jordan Davis",
-    initials: "JD",
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000002",
-    name: "Amira Chen",
-    initials: "AC",
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000003",
-    name: "Sam Okonkwo",
-    initials: "SO",
-  },
-];
-
-const PEOPLE_BY_ID = new Map(DEMO_PEOPLE.map((person) => [person.id, person]));
 
 export const COLUMN_META: {
   status: TaskStatus;
@@ -78,12 +56,44 @@ export function initialsFromName(name: string): string {
   return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
 }
 
+export function membersToPeople(
+  members: TeamMemberWithUser[],
+  currentUser?: { id: string; full_name?: string | null; email?: string } | null
+): TaskPerson[] {
+  const byId = new Map<string, TaskPerson>();
+
+  for (const member of members) {
+    const name =
+      member.full_name?.trim() || member.email?.trim() || "Teammate";
+    byId.set(member.user_id, {
+      id: member.user_id,
+      name,
+      initials: initialsFromName(name),
+    });
+  }
+
+  if (currentUser?.id && !byId.has(currentUser.id)) {
+    const name =
+      currentUser.full_name?.trim() || currentUser.email?.trim() || "You";
+    byId.set(currentUser.id, {
+      id: currentUser.id,
+      name,
+      initials: initialsFromName(name),
+    });
+  }
+
+  return Array.from(byId.values()).sort((a, b) =>
+    a.name.localeCompare(b.name)
+  );
+}
+
 export function resolvePerson(
   assigneeId: string | null | undefined,
+  people: TaskPerson[] = [],
   currentUser?: { id: string; full_name?: string | null; email?: string } | null
 ): TaskPerson | null {
   if (!assigneeId) return null;
-  const known = PEOPLE_BY_ID.get(assigneeId);
+  const known = people.find((person) => person.id === assigneeId);
   if (known) return known;
   if (currentUser?.id === assigneeId) {
     const name = currentUser.full_name?.trim() || currentUser.email || "You";
@@ -129,15 +139,12 @@ export function matchesQuery(task: Task, query: string): boolean {
   return haystack.includes(q);
 }
 
-/** Synthetic workspace signals — UI affordances until integrations ship. */
-export function cardSignals(task: Task): { kind: "pr" | "recap"; label: string }[] {
-  const signals: { kind: "pr" | "recap"; label: string }[] = [];
-  const seed = Number.parseInt(task.id.replace(/-/g, "").slice(-2), 16) || 0;
-  if (task.status !== "todo" || seed % 3 === 0) {
-    if (seed % 2 === 0) signals.push({ kind: "pr", label: "PR link" });
-  }
-  if (task.description?.toLowerCase().includes("recap") || seed % 5 === 0) {
-    signals.push({ kind: "recap", label: "Meeting recap" });
-  }
-  return signals;
+export function parentLabel(
+  parentTaskId: string | null | undefined,
+  tasks: Task[]
+): string | null {
+  if (!parentTaskId) return null;
+  const parent = tasks.find((task) => task.id === parentTaskId);
+  if (!parent) return taskKey(parentTaskId);
+  return `${taskKey(parent.id)} · ${parent.title}`;
 }

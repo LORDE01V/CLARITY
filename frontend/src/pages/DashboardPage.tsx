@@ -36,6 +36,7 @@ export function DashboardPage() {
   const [navOpen, setNavOpen] = useState(false);
   const {
     tasks,
+    people,
     loading: tasksLoading,
     error: tasksError,
     openCount,
@@ -107,6 +108,7 @@ export function DashboardPage() {
           ) : showTasks ? (
             <TasksBoard
               tasks={tasks}
+              people={people}
               loading={tasksLoading}
               error={tasksError}
               isDemo={isDemo}
@@ -119,6 +121,8 @@ export function DashboardPage() {
                   status: input.status,
                   assignee_id: input.assignee_id ?? null,
                   due_date: input.due_date ?? null,
+                  story_points: input.story_points ?? null,
+                  parent_task_id: input.parent_task_id ?? null,
                 });
               }}
               onUpdate={async (taskId, input) => {
@@ -127,6 +131,8 @@ export function DashboardPage() {
                   description: input.description || null,
                   assignee_id: input.assignee_id,
                   due_date: input.due_date,
+                  story_points: input.story_points,
+                  parent_task_id: input.parent_task_id,
                 });
               }}
               onMove={async (taskId, status: TaskStatus) => {
@@ -174,7 +180,22 @@ export function DashboardPage() {
             <CodeActivityPanel />
           ) : (
             <>
-              <StatsCards openTasksCount={openCount} tasksLoading={tasksLoading} />
+              <StatsCards
+                openTasksCount={openCount}
+                tasksLoading={tasksLoading}
+                meetingsTodayCount={
+                  meetings.meetings.filter((meeting) => {
+                    const start = new Date(meeting.started_at ?? meeting.created_at);
+                    if (Number.isNaN(start.getTime())) return false;
+                    const now = new Date();
+                    return (
+                      start.getFullYear() === now.getFullYear() &&
+                      start.getMonth() === now.getMonth() &&
+                      start.getDate() === now.getDate()
+                    );
+                  }).length
+                }
+              />
 
               <div className="grid items-start gap-6 xl:grid-cols-[1.16fr_0.84fr]">
                 <div className="flex flex-col gap-6">

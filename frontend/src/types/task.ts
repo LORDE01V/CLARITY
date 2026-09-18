@@ -11,6 +11,8 @@ export interface Task {
   assignee_id: string | null;
   due_date: string | null;
   position: number;
+  story_points: number | null;
+  parent_task_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -22,6 +24,8 @@ export interface TaskCreate {
   assignee_id?: string | null;
   due_date?: string | null;
   position?: number | null;
+  story_points?: number | null;
+  parent_task_id?: string | null;
 }
 
 export interface TaskUpdate {
@@ -30,6 +34,8 @@ export interface TaskUpdate {
   assignee_id?: string | null;
   due_date?: string | null;
   position?: number | null;
+  story_points?: number | null;
+  parent_task_id?: string | null;
 }
 
 export interface TaskStatusUpdate {

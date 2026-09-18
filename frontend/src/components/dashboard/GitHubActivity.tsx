@@ -25,9 +25,7 @@ export function GitHubActivity({
   limit = 8,
   items: itemsProp,
   loading: loadingProp,
-  isDemo: isDemoProp,
   isBypassMode: isBypassProp,
-  liveCount: liveCountProp,
   error: errorProp,
   showConnect = false,
 }: GitHubActivityProps) {
@@ -35,22 +33,16 @@ export function GitHubActivity({
   const connect = useGitHubConnect();
   const items = itemsProp ?? hooked.items;
   const loading = loadingProp ?? hooked.loading;
-  const isDemo = isDemoProp ?? hooked.isDemo;
   const isBypassMode = isBypassProp ?? hooked.isBypassMode;
-  const liveCount = liveCountProp ?? hooked.liveCount;
   const error = errorProp ?? hooked.error;
   const isLive = hooked.isLive;
   const connected = connect.connected;
   const visible = dense ? items : items.slice(0, 5);
-  const actionLabel = isDemo
-    ? isBypassMode
-      ? `Demo feed · live events: ${liveCount}`
-      : "Demo feed"
-    : isLive
-      ? "Live"
-      : connected
-        ? "Waiting for events"
-        : "Not connected";
+  const actionLabel = isLive
+    ? "Live"
+    : connected
+      ? "Waiting for events"
+      : "Not connected";
 
   const account = connect.status?.account_login;
   const repos = connect.status?.repositories ?? [];

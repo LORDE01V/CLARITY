@@ -6,9 +6,9 @@ import { TaskToolbar, type BoardFilter } from "@/components/tasks/TaskToolbar";
 import type { Task, TaskStatus } from "@/types";
 import {
   COLUMN_META,
-  DEMO_PEOPLE,
   dueTone,
   matchesQuery,
+  type TaskPerson,
 } from "@/lib/tasks/display";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +18,8 @@ export interface TaskCreateInput {
   status?: TaskStatus;
   assignee_id?: string | null;
   due_date?: string | null;
+  story_points?: number | null;
+  parent_task_id?: string | null;
 }
 
 export interface TaskUpdateInput {
@@ -25,10 +27,13 @@ export interface TaskUpdateInput {
   description: string;
   assignee_id: string | null;
   due_date: string | null;
+  story_points: number | null;
+  parent_task_id: string | null;
 }
 
 interface TasksBoardProps {
   tasks: Task[];
+  people: TaskPerson[];
   loading: boolean;
   error: string | null;
   isDemo: boolean;
@@ -43,6 +48,7 @@ interface TasksBoardProps {
 
 export function TasksBoard({
   tasks,
+  people,
   loading,
   error,
   isDemo,
@@ -71,6 +77,15 @@ export function TasksBoard({
       setSelectedId(null);
     }
   }, [tasks, selectedId]);
+
+  useEffect(() => {
+    if (
+      assigneeFilter &&
+      !people.some((person) => person.id === assigneeFilter)
+    ) {
+      setAssigneeFilter(null);
+    }
+  }, [people, assigneeFilter]);
 
   const filtered = useMemo(() => {
     return tasks.filter((task) => {
@@ -124,7 +139,7 @@ export function TasksBoard({
         </h1>
         <p className="mt-2 max-w-md text-[13px] leading-6 text-muted-foreground">
           Select or create a team workspace to open the accountability board —
-          where owners, due dates, and eventual meeting or PR trails meet.
+          where owners, due dates, story points, and linked work meet.
         </p>
       </Panel>
     );
@@ -139,9 +154,8 @@ export function TasksBoard({
           Tasks
         </h1>
         <p className="max-w-2xl text-[13px] leading-6 text-muted-foreground">
-          Own the work that meetings decide. Search the board, create in a
-          column, and open any card for ownership and due dates — with room for
-          recaps and PRs as Clarity connects.
+          Own the work that meetings decide. Set story points for effort, link
+          bugs to a parent task, and filter by real teammates on this board.
         </p>
       </header>
 
@@ -153,7 +167,7 @@ export function TasksBoard({
           onFilterChange={setFilter}
           assigneeId={assigneeFilter}
           onAssigneeChange={setAssigneeFilter}
-          people={DEMO_PEOPLE}
+          people={people}
           currentUserId={currentUser?.id}
           total={tasks.length}
           visible={filtered.length}
@@ -206,6 +220,8 @@ export function TasksBoard({
                 hint={column.hint}
                 empty={column.empty}
                 tasks={filteredByStatus[column.status]}
+                allTasks={tasks}
+                people={people}
                 busyId={busyId}
                 selectedId={selectedId}
                 currentUser={currentUser}
@@ -230,9 +246,8 @@ export function TasksBoard({
               Board is clear
             </p>
             <p className="mx-auto mt-2 max-w-sm text-[13px] leading-6 text-muted-foreground">
-              Use Create in any column to capture the next action from a meeting
-              or chat. Ownership and due dates stay visible so nothing needs a
-              follow-up sync.
+              Use Create in any column to capture the next action. Open a card to
+              set story points or link a bug to its parent task.
             </p>
           </div>
         )}
@@ -247,6 +262,8 @@ export function TasksBoard({
 
       <TaskDetailDrawer
         task={selected}
+        tasks={tasks}
+        people={people}
         open={Boolean(selected)}
         busy={busyId === selected?.id}
         currentUser={currentUser}

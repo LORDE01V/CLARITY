@@ -5,12 +5,9 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { useGitHubActivity } from "@/hooks/useGitHubActivity";
 import { useGitHubConnect } from "@/hooks/useGitHubConnect";
 
-/**
- * Code nav surface — Connect GitHub + live activity when authenticated,
- * demo fixtures when auth bypass is on or the API is empty/unreachable.
- */
+/** Code nav surface — Connect GitHub + live webhook activity only. */
 export function CodeActivityPanel() {
-  const { items, raw, loading, isDemo, isBypassMode, liveCount, error } =
+  const { items, raw, loading, isBypassMode, liveCount, error } =
     useGitHubActivity(30);
   const connect = useGitHubConnect();
   const linked = raw.filter((item) => item.task_keys.length > 0).length;
@@ -25,11 +22,7 @@ export function CodeActivityPanel() {
           <p className="mt-1 max-w-xl text-[12px] leading-relaxed text-muted-light">
             {connect.connected
               ? "Your GitHub App installation is linked. Events appear below as webhooks arrive. Reference CLR-### in PR or issue titles to link work to tasks."
-              : isBypassMode && isDemo
-                ? "Demo mode shows sample GitHub activity. Connect GitHub to install the App, or keep using the env installation for solo local testing."
-                : isDemo
-                  ? "Connect GitHub to install the App, then trigger a ping or PR mentioning CLR-###."
-                  : "Events arrive from your GitHub App via webhooks. Reference CLR-### in PR or issue titles to link work to tasks."}
+              : "Events arrive from your GitHub App via webhooks. Reference CLR-### in PR or issue titles to link work to tasks."}
           </p>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -84,17 +77,11 @@ export function CodeActivityPanel() {
             <p className="mt-2 text-[11px] text-muted-light">{connect.error}</p>
           )}
 
-          {isBypassMode && (
-            <p className="mt-2 text-[11px] text-muted-light">
-              Demo mode · live events: {liveCount}
-            </p>
-          )}
-          {!isDemo && (
-            <p className="mt-2 text-[11px] text-muted-light">
-              {raw.length} recent event{raw.length === 1 ? "" : "s"}
-              {linked > 0 ? ` · ${linked} linked to tasks` : ""}
-            </p>
-          )}
+          <p className="mt-2 text-[11px] text-muted-light">
+            {raw.length} recent event{raw.length === 1 ? "" : "s"}
+            {linked > 0 ? ` · ${linked} linked to tasks` : ""}
+            {liveCount > 0 ? ` · ${liveCount} live` : ""}
+          </p>
         </div>
       </Panel>
       <GitHubActivity
@@ -102,7 +89,6 @@ export function CodeActivityPanel() {
         limit={30}
         items={items}
         loading={loading}
-        isDemo={isDemo}
         isBypassMode={isBypassMode}
         liveCount={liveCount}
         error={error}

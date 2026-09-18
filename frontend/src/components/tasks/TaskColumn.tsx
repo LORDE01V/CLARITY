@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useId, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { TaskCard } from "@/components/tasks/TaskCard";
+import type { TaskPerson } from "@/lib/tasks/display";
 import type { Task, TaskStatus } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +12,8 @@ interface TaskColumnProps {
   hint: string;
   empty: string;
   tasks: Task[];
+  allTasks: Task[];
+  people: TaskPerson[];
   busyId: string | null;
   selectedId: string | null;
   currentUser?: { id: string; full_name?: string | null; email?: string } | null;
@@ -24,6 +27,8 @@ export function TaskColumn({
   hint,
   empty,
   tasks,
+  allTasks,
+  people,
   busyId,
   selectedId,
   currentUser,
@@ -102,6 +107,8 @@ export function TaskColumn({
           <TaskCard
             key={task.id}
             task={task}
+            tasks={allTasks}
+            people={people}
             busy={busyId === task.id}
             selected={selectedId === task.id}
             currentUser={currentUser}

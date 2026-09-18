@@ -1,5 +1,5 @@
 import { Search, UserRound, CalendarClock, X } from "lucide-react";
-import { DEMO_PEOPLE, type TaskPerson } from "@/lib/tasks/display";
+import type { TaskPerson } from "@/lib/tasks/display";
 import { cn } from "@/lib/utils";
 
 export type BoardFilter = "all" | "mine" | "unassigned" | "overdue";
@@ -37,8 +37,6 @@ export function TaskToolbar({
   visible,
   isDemo,
 }: TaskToolbarProps) {
-  const roster = people.length > 0 ? people : DEMO_PEOPLE;
-
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -82,7 +80,7 @@ export function TaskToolbar({
           )}
           {isDemo && (
             <span className="ml-2 rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-              Demo board
+              Offline board
             </span>
           )}
         </p>
@@ -128,7 +126,7 @@ export function TaskToolbar({
           >
             Anyone
           </button>
-          {roster.map((person) => (
+          {people.map((person) => (
             <button
               key={person.id}
               type="button"

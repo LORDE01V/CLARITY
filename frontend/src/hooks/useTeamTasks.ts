@@ -1,6 +1,6 @@
 /**
- * Loads and mutates tasks for the active team.
- * Uses the real API when authenticated; demo store in bypass mode.
+ * Loads and mutates tasks for the active team, plus the live member roster
+ * used for assignee filters and ownership.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -14,12 +14,14 @@ import {
   moveDemoTask,
   updateDemoTask,
 } from "@/lib/tasks/demo";
+import { membersToPeople, type TaskPerson } from "@/lib/tasks/display";
 import type {
   Task,
   TaskCreate,
   TaskStatus,
   TaskStatusUpdate,
   TaskUpdate,
+  TeamMemberWithUser,
 } from "@/types";
 
 function formatError(err: unknown, fallback: string): string {
@@ -31,17 +33,24 @@ function formatError(err: unknown, fallback: string): string {
 }
 
 export function useTeamTasks() {
-  const { isBypassMode } = useAuth();
+  const { user, isBypassMode } = useAuth();
   const { team } = useWorkspace();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [members, setMembers] = useState<TeamMemberWithUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const teamId = team?.id ?? null;
 
+  const people: TaskPerson[] = useMemo(
+    () => membersToPeople(members, user),
+    [members, user]
+  );
+
   const refresh = useCallback(async () => {
     if (!teamId) {
       setTasks([]);
+      setMembers([]);
       setLoading(false);
       setError(null);
       return;
@@ -53,11 +62,18 @@ export function useTeamTasks() {
     try {
       if (isBypassMode) {
         setTasks(listDemoTasks(teamId));
+        setMembers([]);
       } else {
-        setTasks(await api.tasks.list(teamId));
+        const [taskList, memberList] = await Promise.all([
+          api.tasks.list(teamId),
+          api.teams.listMembers(teamId),
+        ]);
+        setTasks(taskList);
+        setMembers(memberList);
       }
     } catch (err) {
       setTasks([]);
+      setMembers([]);
       setError(formatError(err, "Could not load tasks"));
     } finally {
       setLoading(false);
@@ -118,7 +134,15 @@ export function useTeamTasks() {
       } else {
         await api.tasks.delete(teamId, taskId);
       }
-      setTasks((prev) => prev.filter((task) => task.id !== taskId));
+      setTasks((prev) =>
+        prev
+          .filter((task) => task.id !== taskId)
+          .map((task) =>
+            task.parent_task_id === taskId
+              ? { ...task, parent_task_id: null }
+              : task
+          )
+      );
     },
     [teamId, isBypassMode]
   );
@@ -140,6 +164,8 @@ export function useTeamTasks() {
 
   return {
     tasks,
+    people,
+    members,
     loading,
     error,
     openCount,

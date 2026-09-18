@@ -1,10 +1,9 @@
-import { FormEvent, useEffect, useId, useRef, useState } from "react";
+import { FormEvent, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
   CalendarDays,
-  GitPullRequest,
-  Mic2,
+  Link2,
   Trash2,
   X,
 } from "lucide-react";
@@ -12,18 +11,20 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import type { Task, TaskStatus } from "@/types";
 import {
-  DEMO_PEOPLE,
   NEXT_STATUS,
-  cardSignals,
   dueTone,
   formatDueDate,
+  parentLabel,
   resolvePerson,
   taskKey,
+  type TaskPerson,
 } from "@/lib/tasks/display";
 import { cn } from "@/lib/utils";
 
 interface TaskDetailDrawerProps {
   task: Task | null;
+  tasks: Task[];
+  people: TaskPerson[];
   open: boolean;
   busy: boolean;
   currentUser?: { id: string; full_name?: string | null; email?: string } | null;
@@ -33,6 +34,8 @@ interface TaskDetailDrawerProps {
     description: string;
     assignee_id: string | null;
     due_date: string | null;
+    story_points: number | null;
+    parent_task_id: string | null;
   }) => Promise<void>;
   onMove: (status: TaskStatus) => Promise<void>;
   onDelete: () => Promise<void>;
@@ -40,6 +43,8 @@ interface TaskDetailDrawerProps {
 
 export function TaskDetailDrawer({
   task,
+  tasks,
+  people,
   open,
   busy,
   currentUser,
@@ -54,6 +59,8 @@ export function TaskDetailDrawer({
   const [description, setDescription] = useState("");
   const [assigneeId, setAssigneeId] = useState<string>("");
   const [dueDate, setDueDate] = useState("");
+  const [storyPoints, setStoryPoints] = useState("");
+  const [parentTaskId, setParentTaskId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -63,6 +70,8 @@ export function TaskDetailDrawer({
     setDescription(task.description ?? "");
     setAssigneeId(task.assignee_id ?? "");
     setDueDate(task.due_date ?? "");
+    setStoryPoints(task.story_points != null ? String(task.story_points) : "");
+    setParentTaskId(task.parent_task_id ?? "");
     setError(null);
   }, [task]);
 
@@ -84,17 +93,35 @@ export function TaskDetailDrawer({
     if (open) panelRef.current?.focus();
   }, [open, task?.id]);
 
+  const parentOptions = useMemo(() => {
+    if (!task) return [];
+    return tasks
+      .filter((item) => item.id !== task.id)
+      .filter((item) => item.parent_task_id !== task.id)
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }, [tasks, task]);
+
   if (!open || !task) return null;
 
-  const person = resolvePerson(task.assignee_id, currentUser);
+  const person = resolvePerson(task.assignee_id, people, currentUser);
   const next = NEXT_STATUS[task.status];
-  const signals = cardSignals(task);
   const tone = dueTone(task.due_date, task.status);
   const dueLabel = formatDueDate(task.due_date);
+  const linked = parentLabel(task.parent_task_id, tasks);
 
   async function handleSave(e: FormEvent) {
     e.preventDefault();
     if (!title.trim() || saving) return;
+    const pointsRaw = storyPoints.trim();
+    let points: number | null = null;
+    if (pointsRaw) {
+      const parsed = Number.parseInt(pointsRaw, 10);
+      if (!Number.isFinite(parsed) || parsed < 1 || parsed > 100) {
+        setError("Story points must be a whole number from 1 to 100");
+        return;
+      }
+      points = parsed;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -103,6 +130,8 @@ export function TaskDetailDrawer({
         description: description.trim(),
         assignee_id: assigneeId || null,
         due_date: dueDate || null,
+        story_points: points,
+        parent_task_id: parentTaskId || null,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save task");
@@ -185,13 +214,13 @@ export function TaskDetailDrawer({
                 disabled={busy || saving}
               >
                 <option value="">Unassigned</option>
-                {DEMO_PEOPLE.map((p) => (
+                {people.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
                   </option>
                 ))}
                 {currentUser &&
-                  !DEMO_PEOPLE.some((p) => p.id === currentUser.id) && (
+                  !people.some((p) => p.id === currentUser.id) && (
                     <option value={currentUser.id}>
                       {currentUser.full_name || currentUser.email || "You"}
                     </option>
@@ -211,6 +240,40 @@ export function TaskDetailDrawer({
             </label>
           </div>
 
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5 text-[12px] font-medium text-text-body">
+              Story points
+              <input
+                type="number"
+                min={1}
+                max={100}
+                step={1}
+                value={storyPoints}
+                onChange={(e) => setStoryPoints(e.target.value)}
+                className="clarity-input"
+                disabled={busy || saving}
+                placeholder="e.g. 3"
+              />
+            </label>
+
+            <label className="flex flex-col gap-1.5 text-[12px] font-medium text-text-body">
+              Parent task
+              <select
+                value={parentTaskId}
+                onChange={(e) => setParentTaskId(e.target.value)}
+                className="clarity-input"
+                disabled={busy || saving}
+              >
+                <option value="">None</option>
+                {parentOptions.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {taskKey(item.id)} · {item.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
           <div className="rounded-[var(--radius-sm)] border border-border-subtle bg-row-hover/80 px-3 py-3">
             <div className="flex flex-wrap items-center gap-3 text-[12px] text-muted-foreground">
               {person ? (
@@ -223,6 +286,11 @@ export function TaskDetailDrawer({
                 </span>
               ) : (
                 <span>Unassigned</span>
+              )}
+              {task.story_points != null && (
+                <span className="font-medium tabular-nums text-card-foreground">
+                  {task.story_points} pts
+                </span>
               )}
               {dueLabel && (
                 <span
@@ -238,23 +306,11 @@ export function TaskDetailDrawer({
               )}
             </div>
 
-            {signals.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {signals.map((signal) => (
-                  <span
-                    key={signal.kind}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-[var(--info-banner-border)] bg-accent/50 px-2 py-1 text-[11px] font-medium text-primary"
-                    title="Placeholder — integrations land later"
-                  >
-                    {signal.kind === "pr" ? (
-                      <GitPullRequest className="size-3.5" aria-hidden />
-                    ) : (
-                      <Mic2 className="size-3.5" aria-hidden />
-                    )}
-                    {signal.label}
-                  </span>
-                ))}
-              </div>
+            {linked && (
+              <p className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-medium text-primary">
+                <Link2 className="size-3.5" aria-hidden />
+                Linked to {linked}
+              </p>
             )}
           </div>
 

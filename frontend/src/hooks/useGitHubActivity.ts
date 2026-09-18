@@ -1,14 +1,12 @@
 /**
  * Loads GitHub activity from the API when possible.
- *
- * Real auth never falls back to fake “demo feed” rows — empty means waiting
- * for webhooks. Demo fixtures are only used in pure auth-bypass with no API.
+ * Never injects fake demo rows — empty means waiting for webhooks.
  */
 
 import { useCallback, useEffect, useState } from "react";
 import { Circle, GitCommitHorizontal, GitPullRequest, MessageSquare, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
-import { ACTIVITIES, type ActivityItem } from "@/data/dashboard";
+import type { ActivityItem } from "@/data/dashboard";
 import { api } from "@/lib/api";
 import { hasApiBaseUrl } from "@/lib/auth/config";
 import type { GitHubActivityItem } from "@/types";
@@ -59,10 +57,7 @@ export function mapGitHubActivity(item: GitHubActivityItem): ActivityItem {
 
 export function useGitHubActivity(limit = 20, enabled = true) {
   const { isBypassMode } = useAuth();
-  const useDemoFixtures = isBypassMode && !hasApiBaseUrl();
-  const [items, setItems] = useState<ActivityItem[]>(
-    useDemoFixtures ? ACTIVITIES : []
-  );
+  const [items, setItems] = useState<ActivityItem[]>([]);
   const [raw, setRaw] = useState<GitHubActivityItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [isLive, setIsLive] = useState(false);
@@ -71,16 +66,6 @@ export function useGitHubActivity(limit = 20, enabled = true) {
 
   const refresh = useCallback(async () => {
     if (!enabled) {
-      setLoading(false);
-      return;
-    }
-
-    if (useDemoFixtures) {
-      setItems(ACTIVITIES);
-      setRaw([]);
-      setIsLive(false);
-      setLiveCount(0);
-      setError(null);
       setLoading(false);
       return;
     }
@@ -112,19 +97,17 @@ export function useGitHubActivity(limit = 20, enabled = true) {
     } finally {
       setLoading(false);
     }
-  }, [enabled, limit, useDemoFixtures]);
+  }, [enabled, limit]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
   useEffect(() => {
-    if (!enabled || useDemoFixtures || !hasApiBaseUrl()) return;
+    if (!enabled || !hasApiBaseUrl()) return;
     const id = window.setInterval(() => void refresh(), POLL_MS);
     return () => window.clearInterval(id);
-  }, [enabled, refresh, useDemoFixtures]);
-
-  const isDemo = useDemoFixtures;
+  }, [enabled, refresh]);
 
   return {
     items,
@@ -133,7 +116,7 @@ export function useGitHubActivity(limit = 20, enabled = true) {
     isLive,
     liveCount,
     error,
-    isDemo,
+    isDemo: false,
     isBypassMode,
     refresh,
   };

@@ -1,17 +1,20 @@
-import { CalendarDays, GitPullRequest, Mic2 } from "lucide-react";
+import { CalendarDays, Link2 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import type { Task, TaskStatus } from "@/types";
 import {
-  cardSignals,
   dueTone,
   formatDueDate,
+  parentLabel,
   resolvePerson,
   taskKey,
+  type TaskPerson,
 } from "@/lib/tasks/display";
 import { cn } from "@/lib/utils";
 
 interface TaskCardProps {
   task: Task;
+  tasks: Task[];
+  people: TaskPerson[];
   busy: boolean;
   selected: boolean;
   currentUser?: { id: string; full_name?: string | null; email?: string } | null;
@@ -26,16 +29,18 @@ const STATUS_LABEL: Record<TaskStatus, string> = {
 
 export function TaskCard({
   task,
+  tasks,
+  people,
   busy,
   selected,
   currentUser,
   onOpen,
 }: TaskCardProps) {
-  const person = resolvePerson(task.assignee_id, currentUser);
+  const person = resolvePerson(task.assignee_id, people, currentUser);
   const dueLabel = formatDueDate(task.due_date);
   const tone = dueTone(task.due_date, task.status);
-  const signals = cardSignals(task);
   const key = taskKey(task.id);
+  const linked = parentLabel(task.parent_task_id, tasks);
 
   return (
     <li>
@@ -54,16 +59,26 @@ export function TaskCard({
           <span className="font-mono text-[10px] font-medium tracking-wide text-primary/80">
             {key}
           </span>
-          <span
-            className={cn(
-              "rounded-md px-1.5 py-0.5 text-[10px] font-semibold",
-              task.status === "todo" && "bg-secondary text-text-subtle",
-              task.status === "in_progress" && "bg-accent text-primary",
-              task.status === "done" && "bg-secondary text-muted-foreground"
+          <div className="flex items-center gap-1.5">
+            {task.story_points != null && (
+              <span
+                className="rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-card-foreground"
+                title="Story points"
+              >
+                {task.story_points} pts
+              </span>
             )}
-          >
-            {STATUS_LABEL[task.status]}
-          </span>
+            <span
+              className={cn(
+                "rounded-md px-1.5 py-0.5 text-[10px] font-semibold",
+                task.status === "todo" && "bg-secondary text-text-subtle",
+                task.status === "in_progress" && "bg-accent text-primary",
+                task.status === "done" && "bg-secondary text-muted-foreground"
+              )}
+            >
+              {STATUS_LABEL[task.status]}
+            </span>
+          </div>
         </div>
 
         <p className="mt-2 text-[13px] font-semibold leading-5 text-card-foreground">
@@ -76,23 +91,11 @@ export function TaskCard({
           </p>
         )}
 
-        {signals.length > 0 && (
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            {signals.map((signal) => (
-              <span
-                key={signal.kind}
-                className="inline-flex items-center gap-1 rounded-md bg-accent/70 px-1.5 py-0.5 text-[10px] font-medium text-primary"
-                title={`${signal.label} — coming soon`}
-              >
-                {signal.kind === "pr" ? (
-                  <GitPullRequest className="size-3" aria-hidden />
-                ) : (
-                  <Mic2 className="size-3" aria-hidden />
-                )}
-                {signal.label}
-              </span>
-            ))}
-          </div>
+        {linked && (
+          <p className="mt-2 inline-flex max-w-full items-center gap-1 truncate text-[10px] font-medium text-primary">
+            <Link2 className="size-3 shrink-0" aria-hidden />
+            <span className="truncate">{linked}</span>
+          </p>
         )}
 
         <div className="mt-3 flex items-center justify-between gap-2">
