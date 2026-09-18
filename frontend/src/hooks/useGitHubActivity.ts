@@ -1,19 +1,19 @@
 /**
  * Loads GitHub activity from the API when possible.
- * Falls back to demo fixtures in auth bypass mode or on API failure.
  *
- * In bypass/demo mode we still poll the local activity endpoint (no JWT
- * required when backend APP_ENV is development) so ingested webhooks can
- * surface as proof-of-life without Supabase.
+ * Real auth never falls back to fake “demo feed” rows — empty means waiting
+ * for webhooks. Demo fixtures are only used in pure auth-bypass with no API.
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { Circle, GitPullRequest, MessageSquare, type LucideIcon } from "lucide-react";
+import { Circle, GitCommitHorizontal, GitPullRequest, MessageSquare, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { ACTIVITIES, type ActivityItem } from "@/data/dashboard";
 import { api } from "@/lib/api";
 import { hasApiBaseUrl } from "@/lib/auth/config";
 import type { GitHubActivityItem } from "@/types";
+
+const POLL_MS = 15000;
 
 function relativeTime(iso: string): string {
   const then = new Date(iso).getTime();
@@ -31,12 +31,14 @@ function relativeTime(iso: string): string {
 function iconForEvent(eventType: string): LucideIcon {
   if (eventType === "pull_request") return GitPullRequest;
   if (eventType === "issue_comment") return MessageSquare;
+  if (eventType === "push") return GitCommitHorizontal;
   return Circle;
 }
 
 function toneForEvent(eventType: string): string {
   if (eventType === "pull_request") return "text-primary bg-accent";
   if (eventType === "issue_comment") return "text-chart-3 bg-[#f7ebdb]";
+  if (eventType === "push") return "text-primary bg-accent";
   return "text-chart-4 bg-secondary";
 }
 
@@ -45,10 +47,11 @@ export function mapGitHubActivity(item: GitHubActivityItem): ActivityItem {
     item.task_keys.length > 0 ? ` · ${item.task_keys.join(", ")}` : "";
   const repo = item.repo_full_name ? `${item.repo_full_name}` : "GitHub";
   const actor = item.actor_login ? `${item.actor_login} · ` : "";
+  const preview = item.body_preview ? ` — ${item.body_preview}` : "";
   return {
     icon: iconForEvent(item.event_type),
     title: item.title,
-    desc: `${actor}${repo}${keys}`,
+    desc: `${actor}${repo}${keys}${preview}`,
     time: relativeTime(item.received_at),
     tone: toneForEvent(item.event_type),
   };
@@ -56,7 +59,10 @@ export function mapGitHubActivity(item: GitHubActivityItem): ActivityItem {
 
 export function useGitHubActivity(limit = 20, enabled = true) {
   const { isBypassMode } = useAuth();
-  const [items, setItems] = useState<ActivityItem[]>(ACTIVITIES);
+  const useDemoFixtures = isBypassMode && !hasApiBaseUrl();
+  const [items, setItems] = useState<ActivityItem[]>(
+    useDemoFixtures ? ACTIVITIES : []
+  );
   const [raw, setRaw] = useState<GitHubActivityItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [isLive, setIsLive] = useState(false);
@@ -69,8 +75,7 @@ export function useGitHubActivity(limit = 20, enabled = true) {
       return;
     }
 
-    // Bypass without an API base: stay on pure demo fixtures.
-    if (isBypassMode && !hasApiBaseUrl()) {
+    if (useDemoFixtures) {
       setItems(ACTIVITIES);
       setRaw([]);
       setIsLive(false);
@@ -80,41 +85,46 @@ export function useGitHubActivity(limit = 20, enabled = true) {
       return;
     }
 
+    if (!hasApiBaseUrl()) {
+      setItems([]);
+      setRaw([]);
+      setIsLive(false);
+      setLiveCount(0);
+      setError("API URL is not configured.");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const events = await api.github.activity(limit);
       setRaw(events);
       setLiveCount(events.length);
-      if (events.length === 0) {
-        setItems(ACTIVITIES);
-        setIsLive(false);
-        setError(null);
-      } else {
-        setItems(events.map(mapGitHubActivity));
-        setIsLive(true);
-        setError(null);
-      }
+      setItems(events.map(mapGitHubActivity));
+      setIsLive(events.length > 0);
+      setError(null);
     } catch {
-      setItems(ACTIVITIES);
+      setItems([]);
       setRaw([]);
       setIsLive(false);
       setLiveCount(0);
-      setError(
-        isBypassMode
-          ? "Could not reach local GitHub activity API; showing demo data."
-          : "Could not load GitHub activity; showing demo data."
-      );
+      setError("Could not load GitHub activity from the API.");
     } finally {
       setLoading(false);
     }
-  }, [enabled, isBypassMode, limit]);
+  }, [enabled, limit, useDemoFixtures]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
-  // Demo banner when bypass is on, unless we already swapped to live events.
-  const isDemo = isBypassMode ? !isLive : !isLive;
+  useEffect(() => {
+    if (!enabled || useDemoFixtures || !hasApiBaseUrl()) return;
+    const id = window.setInterval(() => void refresh(), POLL_MS);
+    return () => window.clearInterval(id);
+  }, [enabled, refresh, useDemoFixtures]);
+
+  const isDemo = useDemoFixtures;
 
   return {
     items,

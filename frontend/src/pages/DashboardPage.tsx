@@ -204,7 +204,13 @@ export function DashboardPage() {
                     onCreate={() => setStartMeetingOpen(true)}
                     onJoin={(meeting) => meetings.setActiveMeeting(meeting)}
                   />
-                  <TeamChat onOpenChat={() => setActiveNav("Chat")} />
+                  <TeamChat
+                    hasTeam={chat.hasTeam}
+                    loading={chat.loadingMessages || chat.loadingChannels}
+                    channelName={chat.activeChannel?.name}
+                    messages={chat.messages}
+                    onOpenChat={() => setActiveNav("Chat")}
+                  />
                 </div>
               </div>
             </>

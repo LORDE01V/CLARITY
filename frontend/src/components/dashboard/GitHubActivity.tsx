@@ -39,14 +39,19 @@ export function GitHubActivity({
   const isBypassMode = isBypassProp ?? hooked.isBypassMode;
   const liveCount = liveCountProp ?? hooked.liveCount;
   const error = errorProp ?? hooked.error;
+  const isLive = hooked.isLive;
+  const connected = connect.connected;
   const visible = dense ? items : items.slice(0, 5);
   const actionLabel = isDemo
     ? isBypassMode
       ? `Demo feed · live events: ${liveCount}`
       : "Demo feed"
-    : "Live feed";
+    : isLive
+      ? "Live"
+      : connected
+        ? "Waiting for events"
+        : "Not connected";
 
-  const connected = connect.connected;
   const account = connect.status?.account_login;
   const repos = connect.status?.repositories ?? [];
   const repoSummary =
@@ -134,25 +139,47 @@ export function GitHubActivity({
         )}
       </div>
       <div className="flex flex-col">
-        {visible.map(({ icon: Icon, title, desc, time, tone }) => (
-          <div
-            key={`${title}-${time}-${desc}`}
-            className="flex items-center gap-3 border-b border-border-subtle px-5 py-3.5 last:border-b-0"
-          >
-            <div
-              className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${tone}`}
-            >
-              <Icon className="size-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[12px] font-semibold text-text-body">
-                {title}
-              </p>
-              <p className="truncate text-[10px] text-muted-light">{desc}</p>
-            </div>
-            <span className="text-[10px] text-muted-light">{time}</span>
+        {visible.length === 0 && !loading ? (
+          <div className="px-5 py-6">
+            <p className="text-[12px] leading-5 text-muted-light">
+              {connected
+                ? "No webhook events yet. Push a commit, open a PR, or comment on an issue in a connected repo — activity shows up here live. Mention CLR-### in titles to link tasks."
+                : "Connect GitHub to stream pushes, PRs, and issues into Clarity for the team."}
+            </p>
+            {connected && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="mt-3"
+                onClick={() => void connect.refresh()}
+                disabled={connect.loading}
+              >
+                Refresh
+              </Button>
+            )}
           </div>
-        ))}
+        ) : (
+          visible.map(({ icon: Icon, title, desc, time, tone }) => (
+            <div
+              key={`${title}-${time}-${desc}`}
+              className="flex items-center gap-3 border-b border-border-subtle px-5 py-3.5 last:border-b-0"
+            >
+              <div
+                className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${tone}`}
+              >
+                <Icon className="size-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[12px] font-semibold text-text-body">
+                  {title}
+                </p>
+                <p className="truncate text-[10px] text-muted-light">{desc}</p>
+              </div>
+              <span className="text-[10px] text-muted-light">{time}</span>
+            </div>
+          ))
+        )}
       </div>
     </Panel>
   );
